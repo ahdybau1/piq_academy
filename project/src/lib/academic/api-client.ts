@@ -1,0 +1,72 @@
+import type { AcademicNodeType, AcademicNodeDependencies, AuditLogEntry } from './types';
+
+/**
+ * Seul point de contact entre le frontend (composants client) et les données.
+ * Aucun appel Supabase ici — uniquement des requêtes vers l'API interne
+ * (app/api/academic/nodes/**). La logique et l'autorisation vivent côté serveur.
+ */
+
+interface ApiResult {
+  error?: string;
+}
+
+async function request(url: string, init?: RequestInit): Promise<ApiResult> {
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    return { error: data?.error ?? `Erreur inattendue (${res.status}).` };
+  }
+  return {};
+}
+
+export function createNode(input: { nodeType: AcademicNodeType; name: string; parentId: string | null }) {
+  return request('/api/academic/nodes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateNode(input: { id: string; name: string }) {
+  return request(`/api/academic/nodes/${input.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: input.name }),
+  });
+}
+
+export function setNodeActive(input: { id: string; isActive: boolean }) {
+  return request(`/api/academic/nodes/${input.id}/active`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ isActive: input.isActive }),
+  });
+}
+
+export function moveNode(input: { id: string; newParentId: string | null }) {
+  return request(`/api/academic/nodes/${input.id}/move`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ newParentId: input.newParentId }),
+  });
+}
+
+export function duplicateNode(input: { id: string }) {
+  return request(`/api/academic/nodes/${input.id}/duplicate`, { method: 'POST' });
+}
+
+export function deleteNode(input: { id: string; cascade: boolean }) {
+  return request(`/api/academic/nodes/${input.id}?cascade=${input.cascade}`, { method: 'DELETE' });
+}
+
+export async function fetchDependencies(nodeId: string): Promise<AcademicNodeDependencies> {
+  const res = await fetch(`/api/academic/nodes/${nodeId}/dependencies`);
+  if (!res.ok) throw new Error('Impossible de charger les dépendances.');
+  return res.json();
+}
+
+export async function fetchHistory(nodeId: string): Promise<AuditLogEntry[]> {
+  const res = await fetch(`/api/academic/nodes/${nodeId}/history`);
+  if (!res.ok) throw new Error("Impossible de charger l'historique.");
+  return res.json();
+}
