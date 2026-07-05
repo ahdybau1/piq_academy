@@ -1,0 +1,314 @@
+table_name,ordinal_position,column_name,data_type,is_nullable,column_default,foreign_table_name,foreign_column_name
+academic_nodes,1,id,uuid,NO,gen_random_uuid(),null,null
+academic_nodes,2,parent_id,uuid,YES,null,academic_nodes,id
+academic_nodes,3,node_type,character varying,NO,null,null,null
+academic_nodes,4,name,character varying,NO,null,null,null
+academic_nodes,5,country_id,uuid,YES,null,null,null
+academic_nodes,6,display_order,integer,YES,0,null,null
+academic_nodes,7,is_active,boolean,YES,true,null,null
+academic_nodes,8,created_at,timestamp with time zone,YES,now(),null,null
+access_matrix,1,id,uuid,NO,gen_random_uuid(),null,null
+access_matrix,2,tier_id,uuid,NO,null,subscription_tiers,id
+access_matrix,3,feature_key,character varying,NO,null,null,null
+access_matrix,4,access_level,character varying,NO,'aucun'::character varying,null,null
+access_matrix,5,limit_value,integer,YES,null,null,null
+accounts,1,id,uuid,NO,null,null,null
+accounts,2,email,character varying,NO,null,null,null
+accounts,3,phone,character varying,YES,null,null,null
+accounts,4,first_name,character varying,YES,null,null,null
+accounts,5,last_name,character varying,YES,null,null,null
+accounts,6,preferred_language_id,uuid,YES,null,null,null
+accounts,7,created_at,timestamp with time zone,YES,now(),null,null
+accounts,8,status,text,NO,'actif'::text,null,null
+admin_permissions,1,admin_user_id,uuid,NO,null,admin_users,id
+admin_permissions,2,permission_key,character varying,NO,null,null,null
+admin_permissions,3,granted,boolean,YES,true,null,null
+admin_users,1,id,uuid,NO,null,null,null
+admin_users,2,email,character varying,NO,null,null,null
+admin_users,3,role,character varying,NO,null,null,null
+admin_users,4,scope_json,jsonb,YES,null,null,null
+admin_users,5,created_at,timestamp with time zone,YES,now(),null,null
+ai_agent_calls,1,id,uuid,NO,gen_random_uuid(),null,null
+ai_agent_calls,2,agent_type,character varying,NO,null,null,null
+ai_agent_calls,3,provider,character varying,NO,null,null,null
+ai_agent_calls,4,tokens_used,integer,YES,null,null,null
+ai_agent_calls,5,cost_estimate,numeric,YES,null,null,null
+ai_agent_calls,6,created_at,timestamp with time zone,YES,now(),null,null
+ai_content_review,1,id,uuid,NO,gen_random_uuid(),null,null
+ai_content_review,2,content_id,uuid,NO,null,null,null
+ai_content_review,3,ai_findings_json,jsonb,YES,null,null,null
+ai_content_review,4,accepted,boolean,YES,null,null,null
+ai_content_review,5,reviewed_by,uuid,YES,null,admin_users,id
+ai_content_review,6,created_at,timestamp with time zone,YES,now(),null,null
+audit_log,1,id,uuid,NO,gen_random_uuid(),null,null
+audit_log,2,admin_user_id,uuid,YES,null,admin_users,id
+audit_log,3,action_type,character varying,NO,null,null,null
+audit_log,4,entity_type,character varying,NO,null,null,null
+audit_log,5,entity_id,uuid,NO,null,null,null
+audit_log,6,before_json,jsonb,YES,null,null,null
+audit_log,7,after_json,jsonb,YES,null,null,null
+audit_log,8,created_at,timestamp with time zone,YES,now(),null,null
+chapters,1,id,uuid,NO,gen_random_uuid(),null,null
+chapters,2,subject_id,uuid,NO,null,subjects,id
+chapters,3,term_id,uuid,YES,null,terms,id
+chapters,4,title,character varying,NO,null,null,null
+chapters,5,introduction,text,YES,null,null,null
+chapters,6,display_order,integer,YES,0,null,null
+chapters,7,created_at,timestamp with time zone,YES,now(),null,null
+content_catalog,1,id,uuid,NO,gen_random_uuid(),null,null
+content_catalog,2,subject_id,uuid,NO,null,subjects,id
+content_catalog,3,element_type,character varying,NO,null,null,null
+content_catalog,4,created_at,timestamp with time zone,YES,now(),null,null
+content_translation_classes,1,id,uuid,NO,gen_random_uuid(),null,null
+content_translation_classes,2,translation_id,uuid,NO,null,content_translations,id
+content_translation_classes,3,class_node_id,uuid,NO,null,academic_nodes,id
+content_translations,1,id,uuid,NO,gen_random_uuid(),null,null
+content_translations,2,content_type,character varying,NO,null,null,null
+content_translations,3,content_id,uuid,NO,null,null,null
+content_translations,4,language_id,uuid,NO,null,languages,id
+content_translations,5,status,character varying,YES,'draft'::character varying,null,null
+content_translations,6,version_number,integer,YES,1,null,null
+content_translations,7,translated_by,uuid,YES,null,admin_users,id
+content_translations,8,reviewed_by,uuid,YES,null,admin_users,id
+content_translations,9,assigned_to,uuid,YES,null,admin_users,id
+content_translations,10,created_at,timestamp with time zone,YES,now(),null,null
+content_translations,11,published_at,timestamp with time zone,YES,null,null,null
+content_versions,1,id,uuid,NO,gen_random_uuid(),null,null
+content_versions,2,content_id,uuid,NO,null,null,null
+content_versions,3,version_number,integer,NO,null,null,null
+content_versions,4,content_json,jsonb,NO,null,null,null
+content_versions,5,status,character varying,NO,null,null,null
+content_versions,6,created_at,timestamp with time zone,YES,now(),null,null
+country_languages,1,id,uuid,NO,gen_random_uuid(),null,null
+country_languages,2,country_id,uuid,NO,null,null,null
+country_languages,3,language_id,uuid,NO,null,languages,id
+country_languages,4,is_default,boolean,YES,false,null,null
+country_languages,5,region_codes,jsonb,YES,null,null,null
+country_languages,6,created_at,timestamp with time zone,YES,now(),null,null
+establishment_papers,1,id,uuid,NO,gen_random_uuid(),null,null
+establishment_papers,2,establishment_id,uuid,NO,null,establishments,id
+establishment_papers,3,class_node_id,uuid,NO,null,academic_nodes,id
+establishment_papers,4,subject_id,uuid,NO,null,subjects,id
+establishment_papers,5,year,integer,NO,null,null,null
+establishment_papers,6,document_url,text,YES,null,null,null
+establishment_papers,7,correction_url,text,YES,null,null,null
+establishment_papers,8,created_at,timestamp with time zone,YES,now(),null,null
+establishments,1,id,uuid,NO,gen_random_uuid(),null,null
+establishments,2,country_id,uuid,NO,null,null,null
+establishments,3,name,character varying,NO,null,null,null
+establishments,4,city,character varying,YES,null,null,null
+establishments,5,created_at,timestamp with time zone,YES,now(),null,null
+event_results,1,id,uuid,NO,gen_random_uuid(),null,null
+event_results,2,event_id,uuid,NO,null,events,id
+event_results,3,profile_id,uuid,NO,null,profiles,id
+event_results,4,score,numeric,YES,null,null,null
+event_results,5,rank,integer,YES,null,null,null
+event_results,6,percentile,numeric,YES,null,null,null
+event_results,7,created_at,timestamp with time zone,YES,now(),null,null
+events,1,id,uuid,NO,gen_random_uuid(),null,null
+events,2,type,character varying,NO,null,null,null
+events,3,country_id,uuid,YES,null,null,null
+events,4,start_date,timestamp with time zone,YES,null,null,null
+events,5,end_date,timestamp with time zone,YES,null,null,null
+events,6,pricing_mode,character varying,YES,'inclus'::character varying,null,null
+events,7,created_at,timestamp with time zone,YES,now(),null,null
+exam_papers,1,id,uuid,NO,gen_random_uuid(),null,null
+exam_papers,2,exam_id,uuid,NO,null,official_exams,id
+exam_papers,3,subject_id,uuid,NO,null,subjects,id
+exam_papers,4,year,integer,NO,null,null,null
+exam_papers,5,document_url,text,YES,null,null,null
+exam_papers,6,correction_url,text,YES,null,null,null
+exam_papers,7,created_at,timestamp with time zone,YES,now(),null,null
+exercise_versions,1,id,uuid,NO,gen_random_uuid(),null,null
+exercise_versions,2,exercise_id,uuid,NO,null,exercises,id
+exercise_versions,3,version_number,integer,NO,null,null,null
+exercise_versions,4,content_json,jsonb,NO,null,null,null
+exercise_versions,5,created_at,timestamp with time zone,YES,now(),null,null
+exercises,1,id,uuid,NO,gen_random_uuid(),null,null
+exercises,2,lesson_id,uuid,YES,null,lessons,id
+exercises,3,chapter_id,uuid,YES,null,chapters,id
+exercises,4,type,character varying,NO,null,null,null
+exercises,5,difficulty,character varying,YES,null,null,null
+exercises,6,content_json,jsonb,YES,null,null,null
+exercises,7,min_subscription_tier,character varying,YES,'gratuit'::character varying,null,null
+exercises,8,created_at,timestamp with time zone,YES,now(),null,null
+forum_posts,1,id,uuid,NO,gen_random_uuid(),null,null
+forum_posts,2,thread_id,uuid,NO,null,forum_threads,id
+forum_posts,3,author_id,uuid,YES,null,null,null
+forum_posts,4,content,text,NO,null,null,null
+forum_posts,5,flagged,boolean,YES,false,null,null
+forum_posts,6,created_at,timestamp with time zone,YES,now(),null,null
+forum_threads,1,id,uuid,NO,gen_random_uuid(),null,null
+forum_threads,2,class_node_id,uuid,NO,null,academic_nodes,id
+forum_threads,3,subject_id,uuid,YES,null,subjects,id
+forum_threads,4,title,character varying,NO,null,null,null
+forum_threads,5,created_by,uuid,YES,null,null,null
+forum_threads,6,created_at,timestamp with time zone,YES,now(),null,null
+generated_documents,1,id,uuid,NO,gen_random_uuid(),null,null
+generated_documents,2,profile_id,uuid,YES,null,profiles,id
+generated_documents,3,document_type,character varying,NO,null,null,null
+generated_documents,4,generated_at,timestamp with time zone,YES,now(),null,null
+generated_documents,5,generated_by,uuid,YES,null,admin_users,id
+grade_disputes,1,id,uuid,NO,gen_random_uuid(),null,null
+grade_disputes,2,event_result_id,uuid,NO,null,event_results,id
+grade_disputes,3,reason,text,NO,null,null,null
+grade_disputes,4,status,character varying,YES,'ouvert'::character varying,null,null
+grade_disputes,5,resolution,text,YES,null,null,null
+grade_disputes,6,created_at,timestamp with time zone,YES,now(),null,null
+languages,1,id,uuid,NO,gen_random_uuid(),null,null
+languages,2,code,character varying,NO,null,null,null
+languages,3,name,character varying,NO,null,null,null
+languages,4,name_en,character varying,YES,null,null,null
+languages,5,is_active,boolean,YES,true,null,null
+languages,6,is_rtl,boolean,YES,false,null,null
+languages,7,fallback_language,character varying,YES,null,null,null
+languages,8,created_at,timestamp with time zone,YES,now(),null,null
+lessons,1,id,uuid,NO,gen_random_uuid(),null,null
+lessons,2,chapter_id,uuid,NO,null,chapters,id
+lessons,3,title,character varying,NO,null,null,null
+lessons,4,content_json,jsonb,YES,null,null,null
+lessons,5,display_order,integer,YES,0,null,null
+lessons,6,created_at,timestamp with time zone,YES,now(),null,null
+lessons,7,updated_at,timestamp with time zone,YES,now(),null,null
+media_library,1,id,uuid,NO,gen_random_uuid(),null,null
+media_library,2,type,character varying,NO,null,null,null
+media_library,3,url,text,NO,null,null,null
+media_library,4,uploaded_by,uuid,YES,null,admin_users,id
+media_library,5,created_at,timestamp with time zone,YES,now(),null,null
+monthly_spend_counter,1,profile_id,uuid,NO,null,profiles,id
+monthly_spend_counter,2,month,character varying,NO,null,null,null
+monthly_spend_counter,3,cumulative_amount,numeric,YES,0,null,null
+monthly_spend_counter,4,locked_threshold,numeric,YES,null,null,null
+notification_log,1,id,uuid,NO,gen_random_uuid(),null,null
+notification_log,2,profile_id,uuid,YES,null,profiles,id
+notification_log,3,template_id,uuid,YES,null,notification_templates,id
+notification_log,4,sent_at,timestamp with time zone,YES,now(),null,null
+notification_log,5,opened_at,timestamp with time zone,YES,null,null,null
+notification_templates,1,id,uuid,NO,gen_random_uuid(),null,null
+notification_templates,2,event_key,character varying,NO,null,null,null
+notification_templates,3,channel,character varying,NO,null,null,null
+notification_templates,4,language_id,uuid,YES,null,null,null
+notification_templates,5,title_template,text,YES,null,null,null
+notification_templates,6,body_template,text,YES,null,null,null
+notification_templates,7,created_at,timestamp with time zone,YES,now(),null,null
+official_exams,1,id,uuid,NO,gen_random_uuid(),null,null
+official_exams,2,country_id,uuid,NO,null,null,null
+official_exams,3,class_node_id,uuid,NO,null,academic_nodes,id
+official_exams,4,name,character varying,NO,null,null,null
+official_exams,5,exam_date,date,YES,null,null,null
+official_exams,6,created_at,timestamp with time zone,YES,now(),null,null
+parent_accounts,1,id,uuid,NO,null,null,null
+parent_accounts,2,email,character varying,NO,null,null,null
+parent_accounts,3,phone,character varying,YES,null,null,null
+parent_accounts,4,first_name,character varying,YES,null,null,null
+parent_accounts,5,last_name,character varying,YES,null,null,null
+parent_accounts,6,created_at,timestamp with time zone,YES,now(),null,null
+parent_profile_links,1,parent_account_id,uuid,NO,null,parent_accounts,id
+parent_profile_links,2,profile_id,uuid,NO,null,profiles,id
+parent_profile_links,3,relation_type,character varying,YES,'parent'::character varying,null,null
+parent_profile_links,4,created_at,timestamp with time zone,YES,now(),null,null
+payment_reconciliation,1,id,uuid,NO,gen_random_uuid(),null,null
+payment_reconciliation,2,transaction_id,uuid,NO,null,transactions,id
+payment_reconciliation,3,issue_type,character varying,YES,null,null,null
+payment_reconciliation,4,resolved_by,uuid,YES,null,admin_users,id
+payment_reconciliation,5,resolved_at,timestamp with time zone,YES,null,null,null
+payment_reconciliation,6,created_at,timestamp with time zone,YES,now(),null,null
+profiles,1,id,uuid,NO,gen_random_uuid(),null,null
+profiles,2,account_id,uuid,NO,null,accounts,id
+profiles,3,class_node_id,uuid,NO,null,academic_nodes,id
+profiles,4,subscription_tier,character varying,YES,'gratuit'::character varying,null,null
+profiles,5,status,character varying,YES,'actif'::character varying,null,null
+profiles,6,school_year,character varying,YES,null,null,null
+profiles,7,created_at,timestamp with time zone,YES,now(),null,null
+referral_codes,1,id,uuid,NO,gen_random_uuid(),null,null
+referral_codes,2,profile_id,uuid,NO,null,profiles,id
+referral_codes,3,code,character varying,NO,null,null,null
+referral_codes,4,uses_count,integer,YES,0,null,null
+referral_codes,5,created_at,timestamp with time zone,YES,now(),null,null
+refund_requests,1,id,uuid,NO,gen_random_uuid(),null,null
+refund_requests,2,profile_id,uuid,NO,null,profiles,id
+refund_requests,3,reason_category,character varying,NO,null,null,null
+refund_requests,4,motive,text,YES,null,null,null
+refund_requests,5,status,character varying,YES,'en_attente'::character varying,null,null
+refund_requests,6,decided_by,uuid,YES,null,admin_users,id
+refund_requests,7,decision_reason,text,YES,null,null,null
+refund_requests,8,created_at,timestamp with time zone,YES,now(),null,null
+scheduled_reminders,1,id,uuid,NO,gen_random_uuid(),null,null
+scheduled_reminders,2,profile_id,uuid,NO,null,profiles,id
+scheduled_reminders,3,reminder_type,character varying,NO,null,null,null
+scheduled_reminders,4,trigger_date,date,NO,null,null,null
+scheduled_reminders,5,sent,boolean,YES,false,null,null
+service_health_log,1,id,uuid,NO,gen_random_uuid(),null,null
+service_health_log,2,service_name,character varying,NO,null,null,null
+service_health_log,3,status,character varying,NO,null,null,null
+service_health_log,4,detail,text,YES,null,null,null
+service_health_log,5,checked_at,timestamp with time zone,YES,now(),null,null
+sessions,1,id,uuid,NO,gen_random_uuid(),null,null
+sessions,2,account_id,uuid,NO,null,null,null
+sessions,3,device_fingerprint,text,YES,null,null,null
+sessions,4,platform,character varying,YES,null,null,null
+sessions,5,is_active,boolean,YES,true,null,null
+sessions,6,created_at,timestamp with time zone,YES,now(),null,null
+subject_class_links,1,subject_id,uuid,NO,null,subjects,id
+subject_class_links,2,class_node_id,uuid,NO,null,academic_nodes,id
+subjects,1,id,uuid,NO,gen_random_uuid(),null,null
+subjects,2,name,character varying,NO,null,null,null
+subjects,3,created_at,timestamp with time zone,YES,now(),null,null
+subscription_tier_price_history,1,id,uuid,NO,gen_random_uuid(),null,null
+subscription_tier_price_history,2,tier_id,uuid,NO,null,subscription_tiers,id
+subscription_tier_price_history,3,old_price,numeric,YES,null,null,null
+subscription_tier_price_history,4,new_price,numeric,NO,null,null,null
+subscription_tier_price_history,5,changed_by,uuid,YES,null,admin_users,id
+subscription_tier_price_history,6,changed_at,timestamp with time zone,YES,now(),null,null
+subscription_tiers,1,id,uuid,NO,gen_random_uuid(),null,null
+subscription_tiers,2,name,character varying,NO,null,null,null
+subscription_tiers,3,class_node_id,uuid,YES,null,academic_nodes,id
+subscription_tiers,4,price,numeric,YES,null,null,null
+subscription_tiers,5,created_at,timestamp with time zone,YES,now(),null,null
+subscriptions,1,id,uuid,NO,gen_random_uuid(),null,null
+subscriptions,2,profile_id,uuid,NO,null,profiles,id
+subscriptions,3,tier_id,uuid,NO,null,subscription_tiers,id
+subscriptions,4,status,character varying,YES,'actif'::character varying,null,null
+subscriptions,5,start_date,date,NO,null,null,null
+subscriptions,6,end_date,date,YES,null,null,null
+subscriptions,7,created_at,timestamp with time zone,YES,now(),null,null
+support_tickets,1,id,uuid,NO,gen_random_uuid(),null,null
+support_tickets,2,account_id,uuid,YES,null,null,null
+support_tickets,3,category,character varying,NO,null,null,null
+support_tickets,4,status,character varying,YES,'ouvert'::character varying,null,null
+support_tickets,5,requester_type,character varying,YES,'eleve'::character varying,null,null
+support_tickets,6,created_at,timestamp with time zone,YES,now(),null,null
+support_tickets,7,sla_deadline,timestamp with time zone,YES,null,null,null
+support_tickets,8,escalated,boolean,YES,false,null,null
+support_tickets,9,escalated_at,timestamp with time zone,YES,null,null,null
+teacher_establishments,1,teacher_id,uuid,NO,null,admin_users,id
+teacher_establishments,2,establishment_id,uuid,NO,null,establishments,id
+teacher_establishments,3,subjects_scope,jsonb,YES,null,null,null
+teacher_establishments,4,classes_scope,jsonb,YES,null,null,null
+terms,1,id,uuid,NO,gen_random_uuid(),null,null
+terms,2,country_id,uuid,NO,null,null,null
+terms,3,name,character varying,NO,null,null,null
+terms,4,start_date,date,NO,null,null,null
+terms,5,end_date,date,NO,null,null,null
+transactions,1,id,uuid,NO,gen_random_uuid(),null,null
+transactions,2,profile_id,uuid,NO,null,profiles,id
+transactions,3,amount,numeric,NO,null,null,null
+transactions,4,operator,character varying,YES,null,null,null
+transactions,5,status,character varying,YES,'en_attente'::character varying,null,null
+transactions,6,aggregator_ref,character varying,YES,null,null,null
+transactions,7,created_at,timestamp with time zone,YES,now(),null,null
+validation_queue,1,id,uuid,NO,gen_random_uuid(),null,null
+validation_queue,2,content_type,character varying,NO,null,null,null
+validation_queue,3,content_id,uuid,NO,null,null,null
+validation_queue,4,status,character varying,NO,'en_attente_de_validation'::character varying,null,null
+validation_queue,5,submitted_by,uuid,YES,null,admin_users,id
+validation_queue,6,reviewed_by,uuid,YES,null,admin_users,id
+validation_queue,7,rejection_reason,text,YES,null,null,null
+validation_queue,8,ai_report_json,jsonb,YES,null,null,null
+validation_queue,9,created_at,timestamp with time zone,YES,now(),null,null
+validation_queue,10,reviewed_at,timestamp with time zone,YES,null,null,null
+whatsapp_communities,1,id,uuid,NO,gen_random_uuid(),null,null
+whatsapp_communities,2,class_node_id,uuid,NO,null,academic_nodes,id
+whatsapp_communities,3,invite_link,text,NO,null,null,null
+whatsapp_communities,4,member_count_estimate,integer,YES,null,null,null
+whatsapp_communities,5,created_at,timestamp with time zone,YES,now(),null,null

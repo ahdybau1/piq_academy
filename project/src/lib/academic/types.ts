@@ -61,6 +61,11 @@ export interface AcademicNodeDependencies {
   linkedSubjectCount: number;
   activeProfileCount: number;
   subscriptionTierCount: number;
+  officialExamCount: number;
+  establishmentPaperCount: number;
+  forumThreadCount: number;
+  whatsappCommunityCount: number;
+  contentTranslationClassCount: number;
 }
 
 export interface AuditLogEntry {

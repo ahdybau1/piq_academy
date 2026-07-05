@@ -1,21 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/page-header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
@@ -25,64 +17,85 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { FileText, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { useApp } from '@/lib/app-context';
 import {
-  FileText,
-  Search,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Edit,
-  Eye,
-  MessageSquareWarning,
-  BarChart3,
-} from 'lucide-react';
-import { MOCK_CONTENT_VALIDATION } from '@/lib/mock-data';
+  fetchValidationQueue,
+  approveValidation,
+  requestCorrection,
+  rejectDefinitively,
+} from '@/lib/content/api-client';
+import { CONTENT_STATUS_LABELS } from '@/lib/content/constants';
+import type { ValidationQueueItem } from '@/lib/content/types';
 import { cn } from '@/lib/utils';
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon?: React.ReactNode }> = {
-  draft: { label: 'Brouillon', color: 'bg-slate-100 text-slate-700', icon: <Clock className="h-4 w-4" /> },
-  pending: { label: 'En attente', color: 'bg-amber-100 text-amber-700', icon: <Clock className="h-4 w-4" /> },
-  correction: { label: 'À corriger', color: 'bg-red-100 text-red-700', icon: <AlertCircle className="h-4 w-4" /> },
-  published: { label: 'Publié', color: 'bg-emerald-100 text-emerald-700', icon: <CheckCircle className="h-4 w-4" /> },
-  rejected: { label: 'Rejeté', color: 'bg-red-100 text-red-700', icon: <XCircle className="h-4 w-4" /> },
+const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode }> = {
+  brouillon: { color: 'bg-slate-100 text-slate-700', icon: <Clock className="h-4 w-4" /> },
+  en_attente_de_validation: { color: 'bg-amber-100 text-amber-700', icon: <Clock className="h-4 w-4" /> },
+  a_corriger: { color: 'bg-red-100 text-red-700', icon: <AlertCircle className="h-4 w-4" /> },
+  publie: { color: 'bg-emerald-100 text-emerald-700', icon: <CheckCircle className="h-4 w-4" /> },
+  rejete: { color: 'bg-red-100 text-red-700', icon: <XCircle className="h-4 w-4" /> },
 };
 
-export default function ValidationQueuePage() {
-  const [activeTab, setActiveTab] = useState('pending');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedItem, setSelectedItem] = useState<typeof MOCK_CONTENT_VALIDATION[0] | null>(null);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
+function formatDate(value: string | null) {
+  if (!value) return '—';
+  return new Date(value).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' });
+}
 
-  const filteredItems = MOCK_CONTENT_VALIDATION.filter(item => {
-    if (activeTab !== 'all' && item.status !== activeTab) return false;
-    if (searchQuery && !item.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    return true;
-  });
+export function ValidationQueuePageView({ initialItems }: { initialItems: ValidationQueueItem[] }) {
+  const router = useRouter();
+  const { currentUser } = useApp();
+  const [, startTransition] = useTransition();
+
+  const [items, setItems] = useState(initialItems);
+  const [activeTab, setActiveTab] = useState('en_attente_de_validation');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const [showCorrectionDialog, setShowCorrectionDialog] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [reason, setReason] = useState('');
+
+  const selectedItem = items.find((i) => i.id === selectedId) ?? null;
+
+  const filteredItems = activeTab === 'all' ? items : items.filter((i) => i.status === activeTab);
 
   const stats = {
-    total: MOCK_CONTENT_VALIDATION.length,
-    pending: MOCK_CONTENT_VALIDATION.filter(i => i.status === 'pending').length,
-    correction: MOCK_CONTENT_VALIDATION.filter(i => i.status === 'correction').length,
-    published: MOCK_CONTENT_VALIDATION.filter(i => i.status === 'published').length,
+    pending: items.filter((i) => i.status === 'en_attente_de_validation').length,
+    correction: items.filter((i) => i.status === 'a_corriger').length,
+    published: items.filter((i) => i.status === 'publie').length,
+    total: items.length,
   };
+
+  const refresh = () => fetchValidationQueue().then(setItems).catch((e) => setError(e.message));
+
+  const runAction = (fn: () => Promise<{ error?: string }>, onSuccess?: () => void) => {
+    setError(null);
+    startTransition(async () => {
+      const result = await fn();
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      onSuccess?.();
+      router.refresh();
+      refresh();
+    });
+  };
+
+  const isOwnSubmission = selectedItem?.submitted_by === currentUser.id;
 
   return (
     <>
       <div className="space-y-6">
         <PageHeader
           title="File de validation de contenu"
-          description="Validez ou rejetez le contenu soumis par les enseignants"
-          breadcrumbs={[
-            { label: 'Validation' },
-            { label: 'File de validation' },
-          ]}
+          description="Validez ou rejetez le contenu soumis"
+          breadcrumbs={[{ label: 'Validation' }, { label: 'File de validation' }]}
         />
 
-        {/* Stats */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('pending')}>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('en_attente_de_validation')}>
             <CardContent className="pt-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -93,7 +106,7 @@ export default function ValidationQueuePage() {
               </div>
             </CardContent>
           </Card>
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('correction')}>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('a_corriger')}>
             <CardContent className="pt-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -104,7 +117,7 @@ export default function ValidationQueuePage() {
               </div>
             </CardContent>
           </Card>
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('published')}>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('publie')}>
             <CardContent className="pt-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -128,218 +141,204 @@ export default function ValidationQueuePage() {
           </Card>
         </div>
 
+        {error && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>
+        )}
+
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Content List */}
           <Card className="lg:col-span-2">
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between gap-4">
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList>
-                    <TabsTrigger value="pending">En attente</TabsTrigger>
-                    <TabsTrigger value="correction">À corriger</TabsTrigger>
-                    <TabsTrigger value="published">Publiés</TabsTrigger>
-                    <TabsTrigger value="all">Tous</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                <div className="relative w-[250px]">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Rechercher..."
-                    className="pl-8"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-              </div>
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList>
+                  <TabsTrigger value="en_attente_de_validation">En attente</TabsTrigger>
+                  <TabsTrigger value="a_corriger">À corriger</TabsTrigger>
+                  <TabsTrigger value="publie">Publiés</TabsTrigger>
+                  <TabsTrigger value="all">Tous</TabsTrigger>
+                </TabsList>
+              </Tabs>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {filteredItems.map((item) => (
                   <div
                     key={item.id}
-                    onClick={() => setSelectedItem(item)}
+                    onClick={() => setSelectedId(item.id)}
                     className={cn(
                       'flex items-start gap-4 rounded-lg border p-4 cursor-pointer transition-all hover:shadow-md',
-                      selectedItem?.id === item.id && 'border-primary bg-primary/5'
+                      selectedId === item.id && 'border-primary bg-primary/5'
                     )}
                   >
-                    <div className="flex-1 space-y-2">
+                    <div className="flex-1 space-y-1">
                       <div className="flex items-start justify-between">
                         <div>
-                          <p className="font-medium">{item.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {item.author} - {item.subject} - {item.class}
-                          </p>
+                          <p className="font-medium">{item.lessonTitle ?? `${item.content_type} — ${item.content_id}`}</p>
+                          {item.lessonTitle && (
+                            <p className="text-sm text-muted-foreground">
+                              {item.subjectName ?? '—'} · {item.chapterTitle ?? '—'}
+                            </p>
+                          )}
                         </div>
-                        <Badge variant="outline" className={STATUS_CONFIG[item.status as keyof typeof STATUS_CONFIG].color}>
+                        <Badge variant="outline" className={STATUS_CONFIG[item.status]?.color}>
                           <span className="flex items-center gap-1">
-                            {STATUS_CONFIG[item.status as keyof typeof STATUS_CONFIG].icon}
-                            {STATUS_CONFIG[item.status as keyof typeof STATUS_CONFIG].label}
+                            {STATUS_CONFIG[item.status]?.icon}
+                            {CONTENT_STATUS_LABELS[item.status] ?? item.status}
                           </span>
                         </Badge>
                       </div>
-                      {item.aiReport && (
-                        <div className="flex items-center gap-4 text-xs">
-                          <div className="flex items-center gap-1">
-                            <BarChart3 className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-muted-foreground">Qualité:</span>
-                            <span className={cn(
-                              'font-medium',
-                              item.aiReport.quality >= 80 ? 'text-emerald-600' : 'text-amber-600'
-                            )}>
-                              {item.aiReport.quality}%
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-muted-foreground">Complétude:</span>
-                            <span className={cn(
-                              'font-medium',
-                              item.aiReport.completeness >= 80 ? 'text-emerald-600' : 'text-amber-600'
-                            )}>
-                              {item.aiReport.completeness}%
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        Soumis le {new Date(item.submittedAt).toLocaleDateString('fr-FR')}
-                      </p>
+                      <p className="text-xs text-muted-foreground">Soumis le {formatDate(item.created_at)}</p>
                     </div>
                   </div>
                 ))}
+                {filteredItems.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-8">Aucun élément ici.</p>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Detail Panel */}
           <Card>
             <CardHeader>
-              <CardTitle>
-                {selectedItem ? 'Détails du contenu' : 'Sélectionnez un élément'}
-              </CardTitle>
+              <CardTitle>{selectedItem ? 'Détails' : 'Sélectionnez un élément'}</CardTitle>
             </CardHeader>
             <CardContent>
-              {selectedItem ? (
-                <div className="space-y-6">
-                  {/* Content Info */}
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2">{selectedItem.title}</h3>
-                    <div className="space-y-1 text-sm">
-                      <p><span className="text-muted-foreground">Type:</span> {selectedItem.type === 'lesson' ? 'Cours' : selectedItem.type === 'exercise' ? 'Exercice' : 'Examen'}</p>
-                      <p><span className="text-muted-foreground">Auteur:</span> {selectedItem.author}</p>
-                      <p><span className="text-muted-foreground">Matière:</span> {selectedItem.subject}</p>
-                      <p><span className="text-muted-foreground">Classe:</span> {selectedItem.class}</p>
-                    </div>
-                  </div>
-
-                  {/* AI Report */}
-                  {selectedItem.aiReport && (
-                    <div className="border-t pt-4 space-y-3">
-                      <p className="text-sm font-medium flex items-center gap-2">
-                        <BarChart3 className="h-4 w-4" />
-                        Rapport de pré-analyse IA
-                      </p>
-                      <div className="grid gap-3">
-                        <div>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span>Qualité</span>
-                            <span className="font-medium">{selectedItem.aiReport.quality}%</span>
-                          </div>
-                          <Progress
-                            value={selectedItem.aiReport.quality}
-                            className={cn('h-2', selectedItem.aiReport.quality >= 80 ? '[&>div]:bg-emerald-500' : '[&>div]:bg-amber-500')}
-                          />
-                        </div>
-                        <div>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span>Complétude</span>
-                            <span className="font-medium">{selectedItem.aiReport.completeness}%</span>
-                          </div>
-                          <Progress
-                            value={selectedItem.aiReport.completeness}
-                            className={cn('h-2', selectedItem.aiReport.completeness >= 80 ? '[&>div]:bg-emerald-500' : '[&>div]:bg-amber-500')}
-                          />
-                        </div>
-                      </div>
-                      {selectedItem.aiReport.errors.length > 0 && (
-                        <div className="rounded-lg bg-red-50 border border-red-200 p-3">
-                          <p className="text-xs font-medium text-red-800 mb-1">Erreurs détectées:</p>
-                          <ul className="text-xs text-red-700 list-disc list-inside space-y-0.5">
-                            {selectedItem.aiReport.errors.map((error, idx) => (
-                              <li key={idx}>{error}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="border-t pt-4 space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4 mr-1" />
-                        Aperçu
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Edit className="h-4 w-4 mr-1" />
-                        Modifier
-                      </Button>
-                    </div>
-                    {selectedItem.status === 'pending' && (
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button className="bg-emerald-600 hover:bg-emerald-700">
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Approuver
-                        </Button>
-                        <Button variant="destructive" onClick={() => setShowRejectDialog(true)}>
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Rejeter
-                        </Button>
-                      </div>
-                    )}
-                    {(selectedItem.status === 'correction' || selectedItem.status === 'draft') && (
-                      <Button className="w-full bg-emerald-600 hover:bg-emerald-700">
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Approuver
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ) : (
+              {!selectedItem && (
                 <div className="text-center text-muted-foreground py-12">
                   <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p className="text-sm">Sélectionnez un contenu pour voir les détails</p>
+                </div>
+              )}
+              {selectedItem && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">
+                      {selectedItem.lessonTitle ?? selectedItem.content_type}
+                    </h3>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="text-muted-foreground">Type:</span> {selectedItem.content_type}</p>
+                      {selectedItem.subjectName && (
+                        <p><span className="text-muted-foreground">Matière:</span> {selectedItem.subjectName}</p>
+                      )}
+                      {selectedItem.chapterTitle && (
+                        <p><span className="text-muted-foreground">Chapitre:</span> {selectedItem.chapterTitle}</p>
+                      )}
+                      {selectedItem.rejection_reason && (
+                        <p><span className="text-muted-foreground">Motif:</span> {selectedItem.rejection_reason}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {isOwnSubmission && (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">
+                      Vous êtes l&apos;auteur de cette soumission — vous ne pouvez pas la réviser vous-même.
+                    </p>
+                  )}
+
+                  {selectedItem.status === 'en_attente_de_validation' && !isOwnSubmission && (
+                    <div className="border-t pt-4 space-y-2">
+                      <Button
+                        className="w-full bg-emerald-600 hover:bg-emerald-700"
+                        onClick={() =>
+                          runAction(() => approveValidation({ queueId: selectedItem.id }), () => setSelectedId(null))
+                        }
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Approuver
+                      </Button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setReason('');
+                            setError(null);
+                            setShowCorrectionDialog(true);
+                          }}
+                        >
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          Renvoyer pour correction
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={() => {
+                            setReason('');
+                            setError(null);
+                            setShowRejectDialog(true);
+                          }}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Rejeter définitivement
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Reject Dialog */}
+        {/* Renvoyer pour correction */}
+        <Dialog open={showCorrectionDialog} onOpenChange={setShowCorrectionDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Renvoyer pour correction</DialogTitle>
+              <DialogDescription>
+                Le contenu repasse en statut « à corriger » et pourra être resoumis par l&apos;auteur.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <Label htmlFor="correction-reason">Motif</Label>
+              <Textarea id="correction-reason" className="mt-2" value={reason} onChange={(e) => setReason(e.target.value)} />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCorrectionDialog(false)}>
+                Annuler
+              </Button>
+              <Button
+                onClick={() =>
+                  runAction(
+                    () => requestCorrection({ queueId: selectedItem!.id, reason }),
+                    () => {
+                      setShowCorrectionDialog(false);
+                      setSelectedId(null);
+                    }
+                  )
+                }
+              >
+                Confirmer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Rejeter définitivement */}
         <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Rejeter le contenu</DialogTitle>
+              <DialogTitle>Rejeter définitivement</DialogTitle>
               <DialogDescription>
-                Veuillez indiquer la raison du rejet. Ce message sera envoyé à l'auteur.
+                Ce statut est terminal — le contenu ne pourra pas être resoumis dans cet état.
               </DialogDescription>
             </DialogHeader>
-            <div className="py-4">
-              <Label htmlFor="reject-reason">Motif du rejet</Label>
-              <Textarea
-                id="reject-reason"
-                placeholder="Ex: Le contenu contient des erreurs factuelles dans la section 2..."
-                className="mt-2"
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-              />
+            <div className="py-2">
+              <Label htmlFor="reject-reason">Motif</Label>
+              <Textarea id="reject-reason" className="mt-2" value={reason} onChange={(e) => setReason(e.target.value)} />
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
                 Annuler
               </Button>
-              <Button variant="destructive" onClick={() => setShowRejectDialog(false)}>
+              <Button
+                variant="destructive"
+                onClick={() =>
+                  runAction(
+                    () => rejectDefinitively({ queueId: selectedItem!.id, reason }),
+                    () => {
+                      setShowRejectDialog(false);
+                      setSelectedId(null);
+                    }
+                  )
+                }
+              >
                 Confirmer le rejet
               </Button>
             </DialogFooter>

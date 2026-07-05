@@ -1,4 +1,4 @@
-import type { AcademicNodeType, AcademicNodeDependencies, AuditLogEntry } from './types';
+import type { AcademicNodeType, AcademicNodeDependencies, AcademicNodeRow, AuditLogEntry } from './types';
 
 /**
  * Seul point de contact entre le frontend (composants client) et les données.
@@ -17,6 +17,12 @@ async function request(url: string, init?: RequestInit): Promise<ApiResult> {
     return { error: data?.error ?? `Erreur inattendue (${res.status}).` };
   }
   return {};
+}
+
+export async function fetchAcademicNodes(): Promise<AcademicNodeRow[]> {
+  const res = await fetch('/api/academic/nodes');
+  if (!res.ok) throw new Error("Impossible de charger l'arbre académique.");
+  return res.json();
 }
 
 export function createNode(input: { nodeType: AcademicNodeType; name: string; parentId: string | null }) {

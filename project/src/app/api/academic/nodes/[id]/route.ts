@@ -25,7 +25,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const { id } = await params;
   const cascade = new URL(request.url).searchParams.get('cascade') === 'true';
 
-  const result = await deleteNode({ id, cascade });
+  const result = await deleteNode({ id, cascade, adminRole: guard.admin.role, adminId: guard.admin.id });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

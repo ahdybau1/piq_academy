@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/page-header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -17,397 +17,561 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { BookOpen, FileText, Layers, Send, Plus, X, Unlock } from 'lucide-react';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  BookOpen,
-  Folder,
-  FileText,
-  Plus,
-  Search,
-  Edit,
-  Eye,
-  ChevronRight,
-  FolderOpen,
-  File,
-  ListOrdered,
-  Video,
-  Image,
-  FileAudio,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-} from 'lucide-react';
-import { MOCK_SUBJECTS } from '@/lib/mock-data';
+  fetchSubjects,
+  createSubject,
+  fetchSubjectClassLinks,
+  addSubjectClassLink,
+  removeSubjectClassLink,
+  fetchChapters,
+  createChapter,
+  fetchTerms,
+  fetchEstablishments,
+  fetchChapterUnlocks,
+  createChapterUnlock,
+  deleteChapterUnlock,
+  fetchLessons,
+  createLesson,
+  submitForValidation,
+} from '@/lib/content/api-client';
+import { fetchAcademicNodes } from '@/lib/academic/api-client';
+import { CONTENT_STATUS_LABELS } from '@/lib/content/constants';
+import type {
+  SubjectRow,
+  ChapterRow,
+  LessonWithStatus,
+  SubjectClassLinkItem,
+  TermRow,
+  EstablishmentRow,
+  ChapterUnlockItem,
+} from '@/lib/content/types';
+import type { AcademicNodeRow } from '@/lib/academic/types';
 import { cn } from '@/lib/utils';
 
-// Mock chapters and lessons
-const MOCK_CHAPTERS = [
-  {
-    id: 'ch1',
-    subjectId: 'sub1',
-    name: 'Équations et inéquations',
-    lessons: [
-      { id: 'l1', name: 'Équations du premier degré', status: 'published', version: 1, hasMedia: true },
-      { id: 'l2', name: 'Équations du second degré', status: 'pending', version: 1, hasMedia: true },
-      { id: 'l3', name: 'Systèmes d\'équations', status: 'draft', version: 1, hasMedia: false },
-    ],
-  },
-  {
-    id: 'ch2',
-    subjectId: 'sub1',
-    name: 'Fonctions',
-    lessons: [
-      { id: 'l4', name: 'Généralités sur les fonctions', status: 'published', version: 2, hasMedia: true },
-      { id: 'l5', name: 'Fonctions affines', status: 'published', version: 1, hasMedia: true },
-    ],
-  },
-  {
-    id: 'ch3',
-    subjectId: 'sub1',
-    name: 'Statistiques',
-    lessons: [
-      { id: 'l6', name: 'Séries statistiques', status: 'correction', version: 1, hasMedia: false },
-    ],
-  },
-];
-
-const MOCK_EXERCISES = [
-  { id: 'ex1', title: 'Exercices équations 1er degré', type: 'lesson_linked', lessonId: 'l1', difficulty: 'easy', status: 'published' },
-  { id: 'ex2', title: 'Exercices équations 2nd degré', type: 'lesson_linked', lessonId: 'l2', difficulty: 'medium', status: 'published' },
-  { id: 'ex3', title: 'Problèmes résolution équations', type: 'chapter_linked', chapterId: 'ch1', difficulty: 'hard', status: 'pending' },
-  { id: 'ex4', title: 'Quiz fonctions affines', type: 'lesson_linked', lessonId: 'l5', difficulty: 'easy', status: 'published' },
-  { id: 'ex5', title: 'Évaluation chapitre Fonctions', type: 'chapter_linked', chapterId: 'ch2', difficulty: 'medium', status: 'draft' },
-  { id: 'ex6', title: 'Problèmes ouverts - Mathématiques', type: 'independent', difficulty: 'hard', status: 'pending' },
-];
-
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  draft: { label: 'Brouillon', color: 'bg-slate-100 text-slate-700', icon: <Clock className="h-3 w-3" /> },
-  pending: { label: 'En attente', color: 'bg-amber-100 text-amber-700', icon: <AlertCircle className="h-3 w-3" /> },
-  correction: { label: 'À corriger', color: 'bg-red-100 text-red-700', icon: <XCircle className="h-3 w-3" /> },
-  published: { label: 'Publié', color: 'bg-emerald-100 text-emerald-700', icon: <CheckCircle2 className="h-3 w-3" /> },
+const STATUS_COLOR: Record<string, string> = {
+  brouillon: 'bg-slate-100 text-slate-700',
+  en_attente_de_validation: 'bg-amber-100 text-amber-700',
+  a_corriger: 'bg-red-100 text-red-700',
+  rejete: 'bg-red-100 text-red-700',
+  publie: 'bg-emerald-100 text-emerald-700',
 };
 
-export default function ContentPage() {
-  const [selectedSubject, setSelectedSubject] = useState('sub1');
-  const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
-  const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showMediaLibrary, setShowMediaLibrary] = useState(false);
+export function ContentPageView({ initialSubjects }: { initialSubjects: SubjectRow[] }) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [subjects, setSubjects] = useState(initialSubjects);
+  const [error, setError] = useState<string | null>(null);
 
-  const subjects = MOCK_SUBJECTS;
-  const chapters = MOCK_CHAPTERS.filter(c => c.subjectId === selectedSubject);
-  const selectedChapterData = chapters.find(c => c.id === selectedChapter);
+  const [academicNodes, setAcademicNodes] = useState<AcademicNodeRow[] | null>(null);
+  useEffect(() => {
+    fetchAcademicNodes().then(setAcademicNodes).catch((e) => setError(e.message));
+  }, []);
+
+  // Une classe assignable est une feuille de l'arbre (aucun nœud enfant) — le vocabulaire
+  // varie par pays, une feuille est le seul critère fiable (même règle que accounts-page.tsx).
+  const leafNodes = useMemo(() => {
+    if (!academicNodes) return [];
+    const parentIds = new Set(academicNodes.map((n) => n.parent_id).filter(Boolean));
+    const byId = new Map(academicNodes.map((n) => [n.id, n]));
+    const pathOf = (id: string): string => {
+      const parts: string[] = [];
+      let current = byId.get(id);
+      while (current) {
+        parts.unshift(current.name);
+        current = current.parent_id ? byId.get(current.parent_id) : undefined;
+      }
+      return parts.join(' / ');
+    };
+    return academicNodes
+      .filter((n) => !parentIds.has(n.id))
+      .map((n) => ({ id: n.id, path: pathOf(n.id) }))
+      .sort((a, b) => a.path.localeCompare(b.path));
+  }, [academicNodes]);
+
+  const nodeById = useMemo(() => new Map((academicNodes ?? []).map((n) => [n.id, n])), [academicNodes]);
+
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
+  const [chapters, setChapters] = useState<ChapterRow[]>([]);
+  const [subjectClassLinks, setSubjectClassLinks] = useState<SubjectClassLinkItem[]>([]);
+  const [terms, setTerms] = useState<TermRow[]>([]);
+  const [establishments, setEstablishments] = useState<EstablishmentRow[]>([]);
+
+  const [newSubjectName, setNewSubjectName] = useState('');
+  const [newSubjectNodeId, setNewSubjectNodeId] = useState('');
+  const [newSubjectNodeSearch, setNewSubjectNodeSearch] = useState('');
+
+  const [addClassLinkNodeId, setAddClassLinkNodeId] = useState('');
+
+  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
+  const [lessons, setLessons] = useState<LessonWithStatus[]>([]);
+  const [chapterUnlocks, setChapterUnlocks] = useState<ChapterUnlockItem[]>([]);
+  const [newChapterTitle, setNewChapterTitle] = useState('');
+  const [newChapterTermId, setNewChapterTermId] = useState('');
+  const [newUnlockEstablishmentId, setNewUnlockEstablishmentId] = useState<string>('');
+
+  const [newLessonTitle, setNewLessonTitle] = useState('');
+  const [newLessonBody, setNewLessonBody] = useState('');
+
+  const selectedSubject = subjects.find((s) => s.id === selectedSubjectId) ?? null;
+  const subjectCountryId = selectedSubject ? nodeById.get(selectedSubject.node_id)?.country_id ?? null : null;
+
+  const refreshSubjects = () => fetchSubjects().then(setSubjects).catch((e) => setError(e.message));
+  const refreshChapters = (subjectId: string) =>
+    fetchChapters(subjectId).then(setChapters).catch((e) => setError(e.message));
+  const refreshSubjectClassLinks = (subjectId: string) =>
+    fetchSubjectClassLinks(subjectId).then(setSubjectClassLinks).catch((e) => setError(e.message));
+  const refreshLessons = (chapterId: string) =>
+    fetchLessons(chapterId).then(setLessons).catch((e) => setError(e.message));
+  const refreshChapterUnlocks = (chapterId: string) =>
+    fetchChapterUnlocks(chapterId).then(setChapterUnlocks).catch((e) => setError(e.message));
+
+  useEffect(() => {
+    if (!selectedSubjectId) return;
+    refreshChapters(selectedSubjectId);
+    refreshSubjectClassLinks(selectedSubjectId);
+  }, [selectedSubjectId]);
+
+  useEffect(() => {
+    if (!subjectCountryId) return;
+    fetchTerms(subjectCountryId).then(setTerms).catch((e) => setError(e.message));
+    fetchEstablishments(subjectCountryId).then(setEstablishments).catch((e) => setError(e.message));
+  }, [subjectCountryId]);
+
+  useEffect(() => {
+    if (!selectedChapterId) return;
+    refreshLessons(selectedChapterId);
+    refreshChapterUnlocks(selectedChapterId);
+  }, [selectedChapterId]);
+
+  const selectSubject = (subjectId: string) => {
+    setSelectedSubjectId(subjectId);
+    setChapters([]);
+    setSubjectClassLinks([]);
+    setSelectedChapterId(null);
+    setLessons([]);
+    setChapterUnlocks([]);
+    setNewChapterTermId('');
+    setTerms([]);
+    setEstablishments([]);
+  };
+
+  const selectChapter = (chapterId: string) => {
+    setSelectedChapterId(chapterId);
+    setLessons([]);
+    setChapterUnlocks([]);
+  };
+
+  const runAction = (fn: () => Promise<{ error?: string }>, onSuccess?: () => void) => {
+    setError(null);
+    startTransition(async () => {
+      const result = await fn();
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      onSuccess?.();
+      router.refresh();
+    });
+  };
+
+  const filteredNewSubjectNodes = newSubjectNodeSearch
+    ? leafNodes.filter((n) => n.path.toLowerCase().includes(newSubjectNodeSearch.toLowerCase()))
+    : leafNodes;
+
+  const linkedClassIds = new Set(subjectClassLinks.map((l) => l.class_node_id));
+  const availableForLinking = leafNodes.filter(
+    (n) => n.id !== selectedSubject?.node_id && !linkedClassIds.has(n.id)
+  );
 
   return (
-    <>
-      <div className="space-y-6">
-        <PageHeader
-          title="Matières & Contenu"
-          description="Gérez les matières, chapitres, leçons et exercices"
-          breadcrumbs={[
-            { label: 'Académique' },
-            { label: 'Matières & Contenu' },
-          ]}
-          actions={
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowMediaLibrary(true)}>
-                <Image className="h-4 w-4 mr-2" />
-                Bibliothèque médias
-              </Button>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Nouveau contenu
-              </Button>
-            </div>
-          }
-        />
+    <div className="space-y-6">
+      <PageHeader
+        title="Gestion du contenu"
+        description="Matières, chapitres et leçons — soumission au workflow de validation"
+        breadcrumbs={[{ label: 'Académique' }, { label: 'Contenu' }]}
+      />
 
-        <div className="grid gap-6 lg:grid-cols-4">
-          {/* Subjects List */}
-          <Card className="lg:col-span-1">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Matières</CardTitle>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Rechercher..."
-                  className="pl-8"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Matières */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BookOpen className="h-4 w-4" />
+              Matières
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <ScrollArea className="max-h-48">
+              <div className="space-y-1">
+                {subjects.map((subject) => (
+                  <button
+                    key={subject.id}
+                    onClick={() => selectSubject(subject.id)}
+                    className={cn(
+                      'w-full text-left text-sm p-2 rounded-md hover:bg-muted',
+                      selectedSubjectId === subject.id && 'bg-primary/10 font-medium'
+                    )}
+                  >
+                    {subject.name}
+                  </button>
+                ))}
+                {subjects.length === 0 && (
+                  <p className="text-sm text-muted-foreground p-2">Aucune matière pour l&apos;instant.</p>
+                )}
               </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ScrollArea className="h-[400px]">
-                <div className="space-y-1 px-3 pb-3">
-                  {subjects
-                    .filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                    .map((subject) => (
-                      <button
-                        key={subject.id}
-                        onClick={() => {
-                          setSelectedSubject(subject.id);
-                          setSelectedChapter(null);
-                          setSelectedLesson(null);
-                        }}
-                        className={cn(
-                          'w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors text-left',
-                          selectedSubject === subject.id
-                            ? 'bg-primary text-primary-foreground'
-                            : 'hover:bg-slate-100'
-                        )}
-                      >
-                        <BookOpen className="h-4 w-4" />
-                        <div className="flex-1">
-                          <p className="font-medium">{subject.name}</p>
-                          <p className={cn(
-                            'text-xs',
-                            selectedSubject === subject.id ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                          )}>
-                            {subject.classes.length} classes
-                          </p>
-                        </div>
-                        {subject.active && (
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              'text-[10px]',
-                              selectedSubject === subject.id ? 'border-primary-foreground/30 bg-primary-foreground/10' : ''
-                            )}
-                          >
-                            {subject.code}
-                          </Badge>
-                        )}
-                      </button>
-                    ))}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
+            </ScrollArea>
 
-          {/* Chapters and Lessons */}
-          <Card className="lg:col-span-2">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Chapitres & Leçons</CardTitle>
-                <Button variant="ghost" size="sm">
-                  <Plus className="h-4 w-4 mr-1" />
-                  Chapitre
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ScrollArea className="h-[400px]">
-                <div className="px-3 pb-3 space-y-2">
-                  {chapters.map((chapter) => (
-                    <div key={chapter.id} className="border rounded-lg overflow-hidden">
-                      {/* Chapter Header */}
+            {selectedSubject && (
+              <div className="border-t pt-3 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Classes liées (contenu partagé)</p>
+                <div className="space-y-1">
+                  {subjectClassLinks.map((link) => (
+                    <div key={link.class_node_id} className="flex items-center justify-between text-sm rounded-md border px-2 py-1">
+                      <span>{link.className ?? link.class_node_id}</span>
                       <button
-                        onClick={() => setSelectedChapter(selectedChapter === chapter.id ? null : chapter.id)}
-                        className={cn(
-                          'w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors',
-                          selectedChapter === chapter.id ? 'bg-slate-100' : 'hover:bg-slate-50'
-                        )}
+                        onClick={() =>
+                          runAction(
+                            () => removeSubjectClassLink({ subjectId: selectedSubject.id, classNodeId: link.class_node_id }),
+                            () => refreshSubjectClassLinks(selectedSubject.id)
+                          )
+                        }
                       >
-                        <ChevronRight className={cn(
-                          'h-4 w-4 transition-transform',
-                          selectedChapter === chapter.id && 'rotate-90'
-                        )} />
-                        <FolderOpen className="h-4 w-4 text-amber-600" />
-                        <span className="font-medium flex-1 text-left">{chapter.name}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {chapter.lessons.length} leçons
-                        </Badge>
+                        <X className="h-3.5 w-3.5 text-muted-foreground hover:text-red-600" />
                       </button>
-
-                      {/* Lessons */}
-                      {selectedChapter === chapter.id && (
-                        <div className="border-t bg-slate-50/50 px-3 py-2 space-y-1">
-                          {chapter.lessons.map((lesson) => (
-                            <button
-                              key={lesson.id}
-                              onClick={() => setSelectedLesson(selectedLesson === lesson.id ? null : lesson.id)}
-                              className={cn(
-                                'w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-                                selectedLesson === lesson.id ? 'bg-primary/10 border border-primary/30' : 'hover:bg-slate-100'
-                              )}
-                            >
-                              <File className="h-4 w-4 text-blue-600" />
-                              <span className="flex-1 text-left">{lesson.name}</span>
-                              {lesson.hasMedia && (
-                                <Video className="h-3.5 w-3.5 text-violet-500" />
-                              )}
-                              <Badge
-                                variant="outline"
-                                className={cn('text-[10px]', STATUS_CONFIG[lesson.status].color)}
-                              >
-                                {STATUS_CONFIG[lesson.status].label}
-                              </Badge>
-                              {lesson.version > 1 && (
-                                <span className="text-[10px] text-muted-foreground">v{lesson.version}</span>
-                              )}
-                            </button>
-                          ))}
-                          <Button variant="ghost" size="sm" className="w-full mt-2">
-                            <Plus className="h-4 w-4 mr-1" />
-                            Ajouter une leçon
-                          </Button>
-                        </div>
-                      )}
                     </div>
                   ))}
+                  {subjectClassLinks.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Aucune classe supplémentaire.</p>
+                  )}
                 </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
+                <div className="flex gap-2">
+                  <Select value={addClassLinkNodeId} onValueChange={(v) => setAddClassLinkNodeId(v ?? '')}>
+                    <SelectTrigger className="text-xs">
+                      <SelectValue placeholder="Ajouter une classe..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableForLinking.map((n) => (
+                        <SelectItem key={n.id} value={n.id}>
+                          {n.path}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    disabled={!addClassLinkNodeId}
+                    onClick={() =>
+                      runAction(
+                        () => addSubjectClassLink({ subjectId: selectedSubject.id, classNodeId: addClassLinkNodeId }),
+                        () => {
+                          setAddClassLinkNodeId('');
+                          refreshSubjectClassLinks(selectedSubject.id);
+                        }
+                      )
+                    }
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
 
-          {/* Lesson/Exercise Detail */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="text-base">
-                {selectedLesson ? 'Détails leçon' : selectedChapter ? 'Exercices du chapitre' : 'Sélectionnez'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {selectedLesson ? (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <File className="h-4 w-4 text-blue-600" />
-                      <span className="font-medium">
-                        {selectedChapterData?.lessons.find(l => l.id === selectedLesson)?.name}
-                      </span>
-                    </div>
-                    <Badge className={STATUS_CONFIG[selectedChapterData?.lessons.find(l => l.id === selectedLesson)?.status || 'draft'].color}>
-                      {STATUS_CONFIG[selectedChapterData?.lessons.find(l => l.id === selectedLesson)?.status || 'draft'].label}
-                    </Badge>
+            <div className="space-y-2 border-t pt-3">
+              <Input
+                placeholder="Nom de la matière"
+                value={newSubjectName}
+                onChange={(e) => setNewSubjectName(e.target.value)}
+              />
+              <div>
+                <Label className="text-xs">Classe de rattachement (obligatoire)</Label>
+                <Input
+                  placeholder="Rechercher une classe..."
+                  value={newSubjectNodeSearch}
+                  onChange={(e) => setNewSubjectNodeSearch(e.target.value)}
+                />
+                <ScrollArea className="max-h-32 mt-1 border rounded-md">
+                  <div className="space-y-1 p-1">
+                    {filteredNewSubjectNodes.map((n) => (
+                      <button
+                        key={n.id}
+                        className={cn(
+                          'w-full text-left text-xs p-1.5 rounded-md hover:bg-muted',
+                          newSubjectNodeId === n.id && 'bg-primary/10'
+                        )}
+                        onClick={() => setNewSubjectNodeId(n.id)}
+                      >
+                        {n.path}
+                      </button>
+                    ))}
                   </div>
+                </ScrollArea>
+              </div>
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={() =>
+                  runAction(
+                    () =>
+                      createSubject({
+                        name: newSubjectName,
+                        nodeId: newSubjectNodeId,
+                        additionalClassNodeIds: [],
+                      }),
+                    () => {
+                      setNewSubjectName('');
+                      setNewSubjectNodeId('');
+                      setNewSubjectNodeSearch('');
+                      refreshSubjects();
+                    }
+                  )
+                }
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Créer la matière
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Version</span>
-                      <span>{selectedChapterData?.lessons.find(l => l.id === selectedLesson)?.version}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Médias</span>
-                      <span>{selectedChapterData?.lessons.find(l => l.id === selectedLesson)?.hasMedia ? 'Oui' : 'Non'}</span>
-                    </div>
+        {/* Chapitres */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Layers className="h-4 w-4" />
+              Chapitres
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {!selectedSubjectId && (
+              <p className="text-sm text-muted-foreground py-8 text-center">Sélectionnez une matière.</p>
+            )}
+            {selectedSubjectId && (
+              <>
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-1">
+                    {chapters.map((chapter) => (
+                      <button
+                        key={chapter.id}
+                        onClick={() => selectChapter(chapter.id)}
+                        className={cn(
+                          'w-full text-left text-sm p-2 rounded-md hover:bg-muted',
+                          selectedChapterId === chapter.id && 'bg-primary/10 font-medium'
+                        )}
+                      >
+                        {chapter.title}
+                      </button>
+                    ))}
+                    {chapters.length === 0 && (
+                      <p className="text-sm text-muted-foreground p-2">Aucun chapitre pour l&apos;instant.</p>
+                    )}
                   </div>
+                </ScrollArea>
 
-                  <div className="grid grid-cols-2 gap-2 pt-2">
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-3.5 w-3.5 mr-1" />
-                      Aperçu
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Edit className="h-3.5 w-3.5 mr-1" />
-                      Modifier
-                    </Button>
-                  </div>
-
-                  {/* Exercises for this lesson */}
-                  <div className="border-t pt-4 space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">Exercices liés</p>
-                    <div className="space-y-2">
-                      {MOCK_EXERCISES.filter(e => e.lessonId === selectedLesson).map((ex) => (
-                        <div key={ex.id} className="flex items-center justify-between text-sm p-2 rounded bg-slate-50">
-                          <span>{ex.title}</span>
-                          <Badge variant="outline" className="text-[10px]">
-                            {ex.difficulty === 'easy' ? 'Facile' : ex.difficulty === 'medium' ? 'Moyen' : 'Difficile'}
-                          </Badge>
+                {selectedChapterId && (
+                  <div className="border-t pt-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                      <Unlock className="h-3.5 w-3.5" />
+                      Déblocage anticipé
+                    </p>
+                    <div className="space-y-1">
+                      {chapterUnlocks.map((u) => (
+                        <div key={u.id} className="flex items-center justify-between text-sm rounded-md border px-2 py-1">
+                          <span>{u.establishmentName ?? 'Tout le pays'}</span>
+                          <button
+                            onClick={() =>
+                              runAction(() => deleteChapterUnlock({ id: u.id }), () => refreshChapterUnlocks(selectedChapterId))
+                            }
+                          >
+                            <X className="h-3.5 w-3.5 text-muted-foreground hover:text-red-600" />
+                          </button>
                         </div>
                       ))}
                     </div>
-                  </div>
-                </div>
-              ) : selectedChapter ? (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">Exercices du chapitre</p>
-                  {MOCK_EXERCISES.filter(e => e.chapterId === selectedChapter).map((ex) => (
-                    <div key={ex.id} className="flex items-center justify-between text-sm p-2 rounded border">
-                      <div>
-                        <p className="font-medium">{ex.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {ex.type === 'chapter_linked' ? 'Lié au chapitre' : 'Indépendant'}
-                        </p>
-                      </div>
-                      <Badge variant="outline" className={cn('text-[10px]', STATUS_CONFIG[ex.status].color)}>
-                        {STATUS_CONFIG[ex.status].label}
-                      </Badge>
+                    <div className="flex gap-2">
+                      <Select value={newUnlockEstablishmentId} onValueChange={(v) => setNewUnlockEstablishmentId(v ?? '')}>
+                        <SelectTrigger className="text-xs">
+                          <SelectValue placeholder="Tout le pays" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {establishments.map((e) => (
+                            <SelectItem key={e.id} value={e.id}>
+                              {e.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          runAction(
+                            () =>
+                              createChapterUnlock({
+                                chapterId: selectedChapterId,
+                                establishmentId: newUnlockEstablishmentId || null,
+                              }),
+                            () => {
+                              setNewUnlockEstablishmentId('');
+                              refreshChapterUnlocks(selectedChapterId);
+                            }
+                          )
+                        }
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-muted-foreground py-8">
-                  <ListOrdered className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">Sélectionnez une leçon pour voir les détails</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Exercise Management Tabs */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Gestion des exercices</CardTitle>
-            <CardDescription>Exercices par type et statut</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="lesson_linked">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="lesson_linked">
-                  Liés à une leçon
-                  <Badge variant="secondary" className="ml-2">{MOCK_EXERCISES.filter(e => e.type === 'lesson_linked').length}</Badge>
-                </TabsTrigger>
-                <TabsTrigger value="chapter_linked">
-                  Liés à un chapitre
-                  <Badge variant="secondary" className="ml-2">{MOCK_EXERCISES.filter(e => e.type === 'chapter_linked').length}</Badge>
-                </TabsTrigger>
-                <TabsTrigger value="independent">
-                  Indépendants
-                  <Badge variant="secondary" className="ml-2">{MOCK_EXERCISES.filter(e => e.type === 'independent').length}</Badge>
-                </TabsTrigger>
-              </TabsList>
-
-              {['lesson_linked', 'chapter_linked', 'independent'].map((type) => (
-                <TabsContent key={type} value={type} className="mt-4">
-                  <div className="grid gap-3">
-                    {MOCK_EXERCISES.filter(e => e.type === type).map((ex) => (
-                      <div key={ex.id} className="flex items-center justify-between rounded-lg border p-3">
-                        <div className="space-y-1">
-                          <p className="font-medium">{ex.title}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>{ex.difficulty === 'easy' ? 'Facile' : ex.difficulty === 'medium' ? 'Moyen' : 'Difficile'}</span>
-                            <span>•</span>
-                            <span>{ex.lessonId || ex.chapterId || 'Aucun parent'}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className={STATUS_CONFIG[ex.status].color}>
-                            {STATUS_CONFIG[ex.status].label}
-                          </Badge>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
                   </div>
-                </TabsContent>
-              ))}
-            </Tabs>
+                )}
+
+                <div className="space-y-2 border-t pt-3">
+                  <Input
+                    placeholder="Titre du chapitre"
+                    value={newChapterTitle}
+                    onChange={(e) => setNewChapterTitle(e.target.value)}
+                  />
+                  <Select value={newChapterTermId} onValueChange={(v) => setNewChapterTermId(v ?? '')}>
+                    <SelectTrigger className="text-xs">
+                      <SelectValue placeholder="Trimestre (obligatoire)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {terms.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name} — {t.school_year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {terms.length === 0 && (
+                    <p className="text-xs text-amber-700">
+                      Aucun trimestre pour ce pays — créez-en un dans l&apos;écran Trimestres avant de créer un chapitre.
+                    </p>
+                  )}
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    disabled={!newChapterTermId}
+                    onClick={() =>
+                      runAction(
+                        () =>
+                          createChapter({
+                            subjectId: selectedSubjectId,
+                            termId: newChapterTermId,
+                            title: newChapterTitle,
+                          }),
+                        () => {
+                          setNewChapterTitle('');
+                          setNewChapterTermId('');
+                          refreshChapters(selectedSubjectId);
+                        }
+                      )
+                    }
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Créer le chapitre
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Leçons */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4" />
+              Leçons
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {!selectedChapterId && (
+              <p className="text-sm text-muted-foreground py-8 text-center">Sélectionnez un chapitre.</p>
+            )}
+            {selectedChapterId && (
+              <>
+                <ScrollArea className="max-h-72">
+                  <div className="space-y-2">
+                    {lessons.map((lesson) => {
+                      const status = lesson.latestVersion?.status ?? 'brouillon';
+                      const canSubmit = status === 'brouillon' || status === 'a_corriger';
+                      return (
+                        <div key={lesson.id} className="rounded-md border p-2 space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium">{lesson.title}</p>
+                            <Badge variant="outline" className={STATUS_COLOR[status]}>
+                              {CONTENT_STATUS_LABELS[status] ?? status}
+                            </Badge>
+                          </div>
+                          {canSubmit && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full"
+                              onClick={() =>
+                                runAction(
+                                  () => submitForValidation({ lessonId: lesson.id }),
+                                  () => refreshLessons(selectedChapterId)
+                                )
+                              }
+                            >
+                              <Send className="h-3.5 w-3.5 mr-1" />
+                              Soumettre pour validation
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {lessons.length === 0 && (
+                      <p className="text-sm text-muted-foreground p-2">Aucune leçon pour l&apos;instant.</p>
+                    )}
+                  </div>
+                </ScrollArea>
+                <div className="space-y-2 border-t pt-3">
+                  <div>
+                    <Label>Titre</Label>
+                    <Input value={newLessonTitle} onChange={(e) => setNewLessonTitle(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>Contenu</Label>
+                    <Textarea
+                      value={newLessonBody}
+                      onChange={(e) => setNewLessonBody(e.target.value)}
+                      placeholder="Corps de la leçon..."
+                      rows={4}
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() =>
+                      runAction(
+                        () =>
+                          createLesson({
+                            chapterId: selectedChapterId,
+                            title: newLessonTitle,
+                            bodyText: newLessonBody,
+                          }),
+                        () => {
+                          setNewLessonTitle('');
+                          setNewLessonBody('');
+                          refreshLessons(selectedChapterId);
+                        }
+                      )
+                    }
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Créer la leçon
+                  </Button>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
-    </>
+    </div>
   );
 }

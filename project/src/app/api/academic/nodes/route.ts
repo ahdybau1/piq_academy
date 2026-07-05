@@ -2,7 +2,16 @@ import { NextResponse } from 'next/server';
 import { requireApiRole } from '@/lib/auth/api';
 import { ACADEMIC_ADMIN_ROLES } from '@/lib/academic/constants';
 import { createNode } from '@/lib/academic/mutations';
+import { listAcademicNodes } from '@/lib/academic/queries';
 import type { AcademicNodeType } from '@/lib/academic/types';
+
+export async function GET() {
+  const guard = await requireApiRole(ACADEMIC_ADMIN_ROLES);
+  if ('response' in guard) return guard.response;
+
+  const nodes = await listAcademicNodes();
+  return NextResponse.json(nodes);
+}
 
 export async function POST(request: Request) {
   const guard = await requireApiRole(ACADEMIC_ADMIN_ROLES);

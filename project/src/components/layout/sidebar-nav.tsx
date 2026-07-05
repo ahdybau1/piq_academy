@@ -45,6 +45,8 @@ import {
   ShieldCheck,
   ArrowRightLeft,
   MegaphoneOff,
+  Tags,
+  Trash2,
 } from 'lucide-react';
 import {
   Collapsible,
@@ -71,6 +73,8 @@ const navigation: NavItem[] = [
     children: [
       { title: 'Arbre académique', href: '/academic/tree', icon: <Layers className="h-4 w-4" />, roles: ['super_admin', 'admin_pays', 'admin_contenu'] },
       { title: 'Matières & Contenu', href: '/academic/content', icon: <BookOpen className="h-4 w-4" />, roles: ['super_admin', 'admin_pays', 'admin_contenu', 'enseignant'] },
+      { title: 'Trimestres', href: '/academic/terms', icon: <Calendar className="h-4 w-4" />, roles: ['super_admin', 'admin_pays', 'admin_contenu'] },
+      { title: 'Catalogue pédagogique', href: '/academic/catalog', icon: <Tags className="h-4 w-4" />, roles: ['super_admin', 'admin_contenu'] },
       { title: 'Examens officiels', href: '/academic/exams', icon: <FileText className="h-4 w-4" />, roles: ['super_admin', 'admin_pays', 'admin_contenu'] },
       { title: 'Établissements & Épreuves', href: '/academic/schools', icon: <Building2 className="h-4 w-4" />, roles: ['super_admin', 'admin_pays'] },
     ],
@@ -150,6 +154,7 @@ const navigation: NavItem[] = [
       { title: 'Import/Export', href: '/system/import-export', icon: <FileDown className="h-4 w-4" />, roles: ['super_admin'] },
       { title: 'Statistiques', href: '/system/stats', icon: <BarChart3 className="h-4 w-4" />, roles: ['super_admin', 'admin_pays'] },
       { title: 'Journal d\'audit', href: '/system/audit', icon: <History className="h-4 w-4" />, roles: ['super_admin'] },
+      { title: 'Corbeille', href: '/system/trash', icon: <Trash2 className="h-4 w-4" />, roles: ['super_admin'] },
     ],
   },
   {

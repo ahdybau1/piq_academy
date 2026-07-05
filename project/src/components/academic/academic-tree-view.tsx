@@ -56,6 +56,7 @@ import {
   type AuditLogEntry,
 } from '@/lib/academic/types';
 import { cn } from '@/lib/utils';
+import { useApp } from '@/lib/app-context';
 
 interface NodeTypeStyle {
   icon: React.ReactNode;
@@ -188,6 +189,8 @@ function TreeNode({
 
 export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNode[] }) {
   const router = useRouter();
+  const { currentUser } = useApp();
+  const isSuperAdmin = currentUser.role === 'super_admin';
   const [isPending, startTransition] = useTransition();
 
   // `initialTree` vient du Server Component (page.tsx) ; router.refresh() après
@@ -735,21 +738,53 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
             (dependencies.childCount > 0 ||
               dependencies.linkedSubjectCount > 0 ||
               dependencies.activeProfileCount > 0 ||
-              dependencies.subscriptionTierCount > 0) && (
+              dependencies.subscriptionTierCount > 0 ||
+              dependencies.officialExamCount > 0 ||
+              dependencies.establishmentPaperCount > 0 ||
+              dependencies.forumThreadCount > 0 ||
+              dependencies.whatsappCommunityCount > 0 ||
+              dependencies.contentTranslationClassCount > 0) && (
               <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 space-y-2 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400">
                 <p className="font-medium">Attention - Dépendances</p>
                 <ul className="ml-4 list-disc text-xs space-y-1">
                   {dependencies.childCount > 0 && <li>{dependencies.childCount} nœud(s) enfant(s)</li>}
                   {dependencies.linkedSubjectCount > 0 && <li>{dependencies.linkedSubjectCount} matière(s) rattachée(s)</li>}
-                  {dependencies.activeProfileCount > 0 && <li>{dependencies.activeProfileCount} élève(s) actif(s) rattaché(s)</li>}
+                  {dependencies.activeProfileCount > 0 && (
+                    <li className="font-medium">
+                      {dependencies.activeProfileCount} profil(s) élève rattaché(s)
+                      {isSuperAdmin
+                        ? ' — seront envoyés dans la corbeille avec la cascade (restaurables)'
+                        : ' — réassignez-les à une autre classe (Comptes & Profils) avant de pouvoir supprimer, ou demandez à un Super-admin'}
+                    </li>
+                  )}
                   {dependencies.subscriptionTierCount > 0 && (
                     <li>{dependencies.subscriptionTierCount} palier(s) d&apos;abonnement rattaché(s)</li>
                   )}
+                  {dependencies.officialExamCount > 0 && <li>{dependencies.officialExamCount} examen(s) officiel(s)</li>}
+                  {dependencies.establishmentPaperCount > 0 && (
+                    <li>{dependencies.establishmentPaperCount} épreuve(s) d&apos;établissement</li>
+                  )}
+                  {dependencies.forumThreadCount > 0 && <li>{dependencies.forumThreadCount} sujet(s) de forum</li>}
+                  {dependencies.whatsappCommunityCount > 0 && (
+                    <li>{dependencies.whatsappCommunityCount} communauté(s) WhatsApp</li>
+                  )}
+                  {dependencies.contentTranslationClassCount > 0 && (
+                    <li>{dependencies.contentTranslationClassCount} traduction(s) associée(s)</li>
+                  )}
                 </ul>
-                {(dependencies.childCount > 0 || dependencies.subscriptionTierCount > 0) && (
+                {(dependencies.childCount > 0 ||
+                  dependencies.linkedSubjectCount > 0 ||
+                  dependencies.subscriptionTierCount > 0 ||
+                  (dependencies.activeProfileCount > 0 && isSuperAdmin) ||
+                  dependencies.officialExamCount > 0 ||
+                  dependencies.establishmentPaperCount > 0 ||
+                  dependencies.forumThreadCount > 0 ||
+                  dependencies.whatsappCommunityCount > 0 ||
+                  dependencies.contentTranslationClassCount > 0) && (
                   <label className="flex items-center gap-2 pt-1 text-red-900 dark:text-red-300">
                     <Checkbox checked={cascadeDelete} onCheckedChange={(v) => setCascadeDelete(v === true)} />
-                    Supprimer aussi tout le contenu lié (cascade)
+                    Supprimer aussi tout le contenu lié (cascade) — envoyé dans la corbeille (restaurable) ; les
+                    paliers d&apos;abonnement déjà vendus seront désactivés et détachés plutôt que supprimés
                   </label>
                 )}
               </div>
@@ -765,7 +800,17 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
               disabled={
                 isPending ||
                 !selectedNode ||
-                (((dependencies?.childCount ?? 0) > 0 || (dependencies?.subscriptionTierCount ?? 0) > 0) && !cascadeDelete)
+                ((dependencies?.activeProfileCount ?? 0) > 0 && !isSuperAdmin) ||
+                (((dependencies?.childCount ?? 0) > 0 ||
+                  (dependencies?.linkedSubjectCount ?? 0) > 0 ||
+                  (dependencies?.subscriptionTierCount ?? 0) > 0 ||
+                  (dependencies?.activeProfileCount ?? 0) > 0 ||
+                  (dependencies?.officialExamCount ?? 0) > 0 ||
+                  (dependencies?.establishmentPaperCount ?? 0) > 0 ||
+                  (dependencies?.forumThreadCount ?? 0) > 0 ||
+                  (dependencies?.whatsappCommunityCount ?? 0) > 0 ||
+                  (dependencies?.contentTranslationClassCount ?? 0) > 0) &&
+                  !cascadeDelete)
               }
               onClick={() =>
                 selectedNode &&
