@@ -17,12 +17,17 @@ export async function POST(request: Request) {
   const guard = await requireApiRole(CONTENT_ADMIN_ROLES);
   if ('response' in guard) return guard.response;
 
-  const body = (await request.json()) as { subjectId?: string; termId?: string; title?: string };
+  const body = (await request.json()) as { subjectId?: string; termId?: string; title?: string; introduction?: string };
   if (typeof body.subjectId !== 'string' || typeof body.termId !== 'string' || typeof body.title !== 'string') {
     return NextResponse.json({ error: 'subjectId, termId et title sont requis.' }, { status: 400 });
   }
 
-  const result = await createChapter({ subjectId: body.subjectId, termId: body.termId, title: body.title });
+  const result = await createChapter({
+    subjectId: body.subjectId,
+    termId: body.termId,
+    title: body.title,
+    introduction: body.introduction,
+  });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

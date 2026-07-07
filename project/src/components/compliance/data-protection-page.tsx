@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import { motion, type Variants } from 'framer-motion';
 import { PageHeader } from '@/components/layout/page-header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,7 +33,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import {
-  Shield,
   UserX,
   Download,
   Trash2,
@@ -51,18 +50,51 @@ import { MOCK_DELETION_REQUESTS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import type { DataDeletionRequest } from '@/lib/types';
 
+const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.04 } } };
+const fadeUp: Variants = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } } };
+const rowItem: Variants = { hidden: { opacity: 0, x: -12 }, show: { opacity: 1, x: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } } };
+
 const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  account_deletion: { label: 'Suppression de compte', color: 'bg-red-100 text-red-700', icon: <UserX className="h-4 w-4" /> },
-  data_export: { label: 'Export de données', color: 'bg-blue-100 text-blue-700', icon: <Download className="h-4 w-4" /> },
-  right_to_be_forgotten: { label: 'Droit à l\'oubli', color: 'bg-violet-100 text-violet-700', icon: <Trash2 className="h-4 w-4" /> },
+  account_deletion: { label: 'Suppression de compte', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', icon: <UserX className="h-4 w-4" /> },
+  data_export: { label: 'Export de données', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', icon: <Download className="h-4 w-4" /> },
+  right_to_be_forgotten: { label: 'Droit à l\'oubli', color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400', icon: <Trash2 className="h-4 w-4" /> },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  pending: { label: 'En attente', color: 'bg-amber-100 text-amber-700', icon: <Clock className="h-4 w-4" /> },
-  processing: { label: 'En cours', color: 'bg-blue-100 text-blue-700', icon: <Loader2 className="h-4 w-4 animate-spin" /> },
-  completed: { label: 'Terminé', color: 'bg-emerald-100 text-emerald-700', icon: <CheckCircle className="h-4 w-4" /> },
-  rejected: { label: 'Rejeté', color: 'bg-red-100 text-red-700', icon: <XCircle className="h-4 w-4" /> },
+  pending: { label: 'En attente', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', icon: <Clock className="h-4 w-4" /> },
+  processing: { label: 'En cours', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', icon: <Loader2 className="h-4 w-4 animate-spin" /> },
+  completed: { label: 'Terminé', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', icon: <CheckCircle className="h-4 w-4" /> },
+  rejected: { label: 'Rejeté', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', icon: <XCircle className="h-4 w-4" /> },
 };
+
+const TYPE_FILTER_ITEMS: Record<string, string> = {
+  all: 'Tous types',
+  account_deletion: 'Suppression',
+  data_export: 'Export',
+  right_to_be_forgotten: 'Oubli',
+};
+
+const STATUS_FILTER_ITEMS: Record<string, string> = {
+  all: 'Tous',
+  pending: 'En attente',
+  processing: 'En cours',
+  completed: 'Terminés',
+};
+
+const RETENTION_POLICIES = [
+  { label: 'Comptes utilisateurs', desc: 'Données personnelles et profils', icon: <Database className="h-5 w-5" />, color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400', duration: '3 ans après inactivité', note: 'Suppression automatique' },
+  { label: 'Historique pédagogique', desc: 'Notes, progression, exercices', icon: <FileText className="h-5 w-5" />, color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', duration: '5 ans', note: 'Archivage puis suppression' },
+  { label: 'Transactions financières', desc: 'Paiements, factures, remboursements', icon: <FileText className="h-5 w-5" />, color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', duration: '7 ans', note: 'Obligation légale' },
+  { label: 'Logs d\'accès', desc: 'Connexions, journal d\'audit', icon: <Database className="h-5 w-5" />, color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400', duration: '2 ans', note: 'Anonymisation après 6 mois' },
+];
+
+const COMPLIANCE_ITEMS = [
+  { label: 'Mentions légales', desc: 'Informations sur le traitement des données', status: 'ok' as const },
+  { label: 'Autorisation APDP', desc: 'Autorisation préalable de l\'Autorité de Protection des Données Personnelles', status: 'warn' as const },
+  { label: 'Transfert hors Cameroun', desc: 'Hébergement Supabase situé hors du territoire national', status: 'warn' as const },
+  { label: 'Droit à l\'oubli', desc: 'Procédure de suppression de données implémentée', status: 'ok' as const },
+  { label: 'Export de données', desc: 'Portabilité des données personnelles', status: 'ok' as const },
+];
 
 export default function DataProtectionPage() {
   const [activeTab, setActiveTab] = useState('requests');
@@ -95,7 +127,7 @@ export default function DataProtectionPage() {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="min-h-full space-y-8 pb-12">
         <PageHeader
           title="Protection des données"
           description="Gestion des demandes RGPD et conformité à la loi camerounaise n° 2024/017"
@@ -106,339 +138,211 @@ export default function DataProtectionPage() {
         />
 
         {/* Alert Banner */}
-        <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-medium text-amber-800">Loi camerounaise n° 2024/017 du 23 décembre 2024</p>
-              <p className="text-amber-700 mt-1">
-                La période transitoire a expiré le 23 juin 2026. Les obligations suivantes sont applicables :
-                consentement parental si moins de 16 ans (selon le seuil retenu), autorisation préalable de l&apos;APDP,
-                et contrôle des transferts de données hors territoire national.
-              </p>
-            </div>
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold">Loi camerounaise n° 2024/017 du 23 décembre 2024</p>
+            <p className="mt-0.5 text-amber-700/80 dark:text-amber-400/80 text-xs">
+              La période transitoire a expiré le 23 juin 2026. Les obligations suivantes sont applicables :
+              consentement parental si moins de 16 ans (selon le seuil retenu), autorisation préalable de l&apos;APDP,
+              et contrôle des transferts de données hors territoire national.
+            </p>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setStatusFilter('pending'); setActiveTab('requests'); }}>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">En attente</p>
-                  <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
+        {/* KPI Strip */}
+        <motion.div variants={stagger} initial="hidden" animate="show" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: 'En attente', value: stats.pending, icon: <Clock className="h-5 w-5" />, bg: 'bg-amber-500/10', color: 'text-amber-500', onClick: () => { setStatusFilter('pending'); setActiveTab('requests'); } },
+            { label: 'En cours', value: stats.processing, icon: <Loader2 className="h-5 w-5" />, bg: 'bg-blue-500/10', color: 'text-blue-500', onClick: () => { setStatusFilter('processing'); setActiveTab('requests'); } },
+            { label: 'Terminés', value: stats.completed, icon: <CheckCircle className="h-5 w-5" />, bg: 'bg-emerald-500/10', color: 'text-emerald-500', onClick: () => { setStatusFilter('completed'); setActiveTab('requests'); } },
+            { label: 'Total', value: stats.total, icon: <FileText className="h-5 w-5" />, bg: 'bg-primary/10', color: 'text-primary', onClick: () => { setStatusFilter('all'); setActiveTab('requests'); } },
+          ].map((kpi) => (
+            <motion.button key={kpi.label} variants={fadeUp} onClick={kpi.onClick}
+              className="rounded-2xl border border-border/40 bg-card p-5 shadow-sm text-left transition-colors hover:border-border/70">
+              <div className="flex items-start justify-between">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60">{kpi.label}</p>
+                  <p className="mt-2 text-2xl font-bold tabular-nums">{kpi.value}</p>
                 </div>
-                <Clock className="h-8 w-8 text-amber-500/50" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setStatusFilter('processing'); setActiveTab('requests'); }}>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">En cours</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats.processing}</p>
+                <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ml-3', kpi.bg, kpi.color)}>
+                  {kpi.icon}
                 </div>
-                <Loader2 className="h-8 w-8 text-blue-500/50 animate-spin" />
               </div>
-            </CardContent>
-          </Card>
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setStatusFilter('completed'); setActiveTab('requests'); }}>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Terminés</p>
-                  <p className="text-2xl font-bold text-emerald-600">{stats.completed}</p>
-                </div>
-                <CheckCircle className="h-8 w-8 text-emerald-500/50" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setStatusFilter('all'); setActiveTab('requests'); }}>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total</p>
-                  <p className="text-2xl font-bold">{stats.total}</p>
-                </div>
-                <FileText className="h-8 w-8 text-primary/50" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </motion.button>
+          ))}
+        </motion.div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="bg-muted/40">
             <TabsTrigger value="requests">Demandes</TabsTrigger>
             <TabsTrigger value="retention">Rétention</TabsTrigger>
             <TabsTrigger value="compliance">Conformité</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="requests" className="space-y-4 mt-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between gap-4">
-                  <CardTitle>Demandes des utilisateurs</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <div className="relative w-[200px]">
-                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Nom, email..."
-                        className="pl-8"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
-                    <Select value={typeFilter} onValueChange={setTypeFilter}>
-                      <SelectTrigger className="w-[150px]">
-                        <SelectValue placeholder="Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tous types</SelectItem>
-                        <SelectItem value="account_deletion">Suppression</SelectItem>
-                        <SelectItem value="data_export">Export</SelectItem>
-                        <SelectItem value="right_to_be_forgotten">Oubli</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="Statut" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tous</SelectItem>
-                        <SelectItem value="pending">En attente</SelectItem>
-                        <SelectItem value="processing">En cours</SelectItem>
-                        <SelectItem value="completed">Terminés</SelectItem>
-                      </SelectContent>
-                    </Select>
+          <TabsContent value="requests" className="space-y-4">
+            <div className="rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between gap-4 border-b border-border/40 p-4">
+                <p className="font-semibold text-sm">Demandes des utilisateurs</p>
+                <div className="flex items-center gap-2">
+                  <div className="relative w-[200px]">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Nom, email..."
+                      className="pl-8"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                   </div>
+                  <Select items={TYPE_FILTER_ITEMS} value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="w-[150px]">
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous types</SelectItem>
+                      <SelectItem value="account_deletion">Suppression</SelectItem>
+                      <SelectItem value="data_export">Export</SelectItem>
+                      <SelectItem value="right_to_be_forgotten">Oubli</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select items={STATUS_FILTER_ITEMS} value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue placeholder="Statut" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous</SelectItem>
+                      <SelectItem value="pending">En attente</SelectItem>
+                      <SelectItem value="processing">En cours</SelectItem>
+                      <SelectItem value="completed">Terminés</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Utilisateur</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Raison</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredRequests.map((req) => (
-                      <TableRow key={req.id}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{req.userName}</p>
-                            <p className="text-xs text-muted-foreground">{req.userEmail}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={cn('gap-1', TYPE_CONFIG[req.type].color)}>
-                            {TYPE_CONFIG[req.type].icon}
-                            {TYPE_CONFIG[req.type].label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate">{req.reason || '-'}</TableCell>
-                        <TableCell>
-                          <p>{new Date(req.createdAt).toLocaleDateString('fr-FR')}</p>
-                          {req.processedAt && (
-                            <p className="text-xs text-muted-foreground">
-                              Traité le {new Date(req.processedAt).toLocaleDateString('fr-FR')}
-                            </p>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/40 bg-muted/30">
+                    <TableHead>Utilisateur</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Raison</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRequests.map((req) => (
+                    <TableRow key={req.id} className="border-border/40 hover:bg-muted/30">
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{req.userName}</p>
+                          <p className="text-xs text-muted-foreground">{req.userEmail}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={cn('gap-1 border-0', TYPE_CONFIG[req.type].color)}>
+                          {TYPE_CONFIG[req.type].icon}
+                          {TYPE_CONFIG[req.type].label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate">{req.reason || '-'}</TableCell>
+                      <TableCell>
+                        <p>{new Date(req.createdAt).toLocaleDateString('fr-FR')}</p>
+                        {req.processedAt && (
+                          <p className="text-xs text-muted-foreground">
+                            Traité le {new Date(req.processedAt).toLocaleDateString('fr-FR')}
+                          </p>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={cn('gap-1 border-0', STATUS_CONFIG[req.status].color)}>
+                          {STATUS_CONFIG[req.status].icon}
+                          {STATUS_CONFIG[req.status].label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedRequest(req)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {req.status === 'pending' && (
+                            <>
+                              <Button size="sm" onClick={() => { setSelectedRequest(req); setShowProcessDialog(true); }}>
+                                Traiter
+                              </Button>
+                              <Button variant="outline" size="sm" className="text-red-600" onClick={() => { setSelectedRequest(req); setShowRejectDialog(true); }}>
+                                Rejeter
+                              </Button>
+                            </>
                           )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={cn('gap-1', STATUS_CONFIG[req.status].color)}>
-                            {STATUS_CONFIG[req.status].icon}
-                            {STATUS_CONFIG[req.status].label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => setSelectedRequest(req)}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            {req.status === 'pending' && (
-                              <>
-                                <Button size="sm" onClick={() => { setSelectedRequest(req); setShowProcessDialog(true); }}>
-                                  Traiter
-                                </Button>
-                                <Button variant="outline" size="sm" className="text-red-600" onClick={() => { setSelectedRequest(req); setShowRejectDialog(true); }}>
-                                  Rejeter
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {filteredRequests.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-16">
+                        <Search className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+                        Aucune demande ne correspond à cette recherche.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </TabsContent>
 
-          <TabsContent value="retention" className="space-y-4 mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Politique de rétention des données</CardTitle>
-                <CardDescription>
-                  Configuration des durées de conservation par type de données
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className="grid gap-4">
-                    <div className="flex items-center justify-between rounded-lg border p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2 rounded-lg bg-blue-100">
-                          <Database className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Comptes utilisateurs</p>
-                          <p className="text-sm text-muted-foreground">Données personnelles et profils</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant="outline">3 ans après inactivité</Badge>
-                        <p className="text-xs text-muted-foreground mt-1">Suppression automatique</p>
-                      </div>
+          <TabsContent value="retention" className="space-y-4">
+            <motion.div variants={stagger} initial="hidden" animate="show" className="grid gap-3">
+              {RETENTION_POLICIES.map((policy) => (
+                <motion.div key={policy.label} variants={rowItem}
+                  className="flex items-center justify-between gap-4 rounded-2xl border border-border/40 bg-card p-5 shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', policy.color)}>
+                      {policy.icon}
                     </div>
-
-                    <div className="flex items-center justify-between rounded-lg border p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2 rounded-lg bg-emerald-100">
-                          <FileText className="h-5 w-5 text-emerald-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Historique pédagogique</p>
-                          <p className="text-sm text-muted-foreground">Notes, progression, exercices</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant="outline">5 ans</Badge>
-                        <p className="text-xs text-muted-foreground mt-1">Archivage puis suppression</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-lg border p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2 rounded-lg bg-amber-100">
-                          <FileText className="h-5 w-5 text-amber-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Transactions financières</p>
-                          <p className="text-sm text-muted-foreground">Paiements, factures, remboursements</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant="outline">7 ans</Badge>
-                        <p className="text-xs text-muted-foreground mt-1">Obligation légale</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-lg border p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2 rounded-lg bg-slate-100">
-                          <Database className="h-5 w-5 text-slate-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Logs d&apos;accès</p>
-                          <p className="text-sm text-muted-foreground">Connexions, journal d&apos;audit</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant="outline">2 ans</Badge>
-                        <p className="text-xs text-muted-foreground mt-1">Anonymisation après 6 mois</p>
-                      </div>
+                    <div>
+                      <p className="font-semibold">{policy.label}</p>
+                      <p className="text-sm text-muted-foreground">{policy.desc}</p>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="text-right shrink-0">
+                    <Badge variant="outline">{policy.duration}</Badge>
+                    <p className="text-xs text-muted-foreground mt-1">{policy.note}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
           </TabsContent>
 
-          <TabsContent value="compliance" className="space-y-4 mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>État de conformité</CardTitle>
-                <CardDescription>
-                  Points de conformité à la loi 2024/017 sur la protection des données personnelles
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 rounded-lg bg-emerald-100">
-                        <CheckCircle className="h-5 w-5 text-emerald-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Mentions légales</p>
-                        <p className="text-sm text-muted-foreground">Informations sur le traitement des données</p>
-                      </div>
+          <TabsContent value="compliance" className="space-y-4">
+            <motion.div variants={stagger} initial="hidden" animate="show" className="grid gap-3">
+              {COMPLIANCE_ITEMS.map((item) => (
+                <motion.div key={item.label} variants={rowItem}
+                  className="flex items-center justify-between gap-4 rounded-2xl border border-border/40 bg-card p-5 shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                      item.status === 'ok' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                    )}>
+                      {item.status === 'ok' ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
                     </div>
-                    <Badge className="bg-emerald-100 text-emerald-700">Conforme</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 rounded-lg bg-amber-100">
-                        <AlertCircle className="h-5 w-5 text-amber-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Autorisation APDP</p>
-                        <p className="text-sm text-muted-foreground">Autorisation préalable de l&apos;Autorité de Protection des Données Personnelles</p>
-                      </div>
+                    <div>
+                      <p className="font-semibold">{item.label}</p>
+                      <p className="text-sm text-muted-foreground">{item.desc}</p>
                     </div>
-                    <Badge className="bg-amber-100 text-amber-700">À vérifier</Badge>
                   </div>
-
-                  <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 rounded-lg bg-amber-100">
-                        <AlertCircle className="h-5 w-5 text-amber-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Transfert hors Cameroun</p>
-                        <p className="text-sm text-muted-foreground">Hébergement Supabase situé hors du territoire national</p>
-                      </div>
-                    </div>
-                    <Badge className="bg-amber-100 text-amber-700">À vérifier</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 rounded-lg bg-emerald-100">
-                        <CheckCircle className="h-5 w-5 text-emerald-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Droit à l&apos;oubli</p>
-                        <p className="text-sm text-muted-foreground">Procédure de suppression de données implémentée</p>
-                      </div>
-                    </div>
-                    <Badge className="bg-emerald-100 text-emerald-700">Conforme</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 rounded-lg bg-emerald-100">
-                        <CheckCircle className="h-5 w-5 text-emerald-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Export de données</p>
-                        <p className="text-sm text-muted-foreground">Portabilité des données personnelles</p>
-                      </div>
-                    </div>
-                    <Badge className="bg-emerald-100 text-emerald-700">Conforme</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  <Badge className={cn(
+                    'border-0 shrink-0',
+                    item.status === 'ok'
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                  )}>
+                    {item.status === 'ok' ? 'Conforme' : 'À vérifier'}
+                  </Badge>
+                </motion.div>
+              ))}
+            </motion.div>
           </TabsContent>
         </Tabs>
       </div>
@@ -456,11 +360,11 @@ export default function DataProtectionPage() {
           </DialogHeader>
           {selectedRequest && (
             <div className="space-y-4 py-4">
-              <div className="rounded-lg bg-slate-50 border p-3 text-sm">
+              <div className="rounded-lg bg-muted/40 border border-border/40 p-3 text-sm">
                 <p className="font-medium">{selectedRequest.userName}</p>
                 <p className="text-muted-foreground">{selectedRequest.userEmail}</p>
               </div>
-              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-700">
+              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-700 dark:bg-blue-950/30 dark:border-blue-900/50 dark:text-blue-300">
                 <p className="font-medium">Action à effectuer</p>
                 <p className="mt-1">
                   {selectedRequest.type === 'data_export' && 'Un fichier ZIP contenant toutes les données personnelles sera généré et envoyé par email.'}
@@ -530,14 +434,14 @@ export default function DataProtectionPage() {
                 </div>
                 <div>
                   <p className="text-muted-foreground">Type</p>
-                  <Badge variant="outline" className={cn('gap-1 mt-1', TYPE_CONFIG[selectedRequest.type].color)}>
+                  <Badge className={cn('gap-1 mt-1 border-0', TYPE_CONFIG[selectedRequest.type].color)}>
                     {TYPE_CONFIG[selectedRequest.type].icon}
                     {TYPE_CONFIG[selectedRequest.type].label}
                   </Badge>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Statut</p>
-                  <Badge variant="outline" className={cn('gap-1 mt-1', STATUS_CONFIG[selectedRequest.status].color)}>
+                  <Badge className={cn('gap-1 mt-1 border-0', STATUS_CONFIG[selectedRequest.status].color)}>
                     {STATUS_CONFIG[selectedRequest.status].icon}
                     {STATUS_CONFIG[selectedRequest.status].label}
                   </Badge>
@@ -554,7 +458,7 @@ export default function DataProtectionPage() {
                 )}
               </div>
               {selectedRequest.reason && (
-                <div className="border-t pt-4">
+                <div className="border-t border-border/40 pt-4">
                   <p className="text-sm text-muted-foreground">Raison</p>
                   <p className="mt-1 text-sm">{selectedRequest.reason}</p>
                 </div>

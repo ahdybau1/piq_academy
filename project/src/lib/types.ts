@@ -300,6 +300,8 @@ export interface ReconciliationItem {
   dbAmount: number;
   providerAmount: number;
   userId: string;
+  userName: string;
+  operator: string;
   status: 'pending' | 'matched' | 'discrepancy' | 'resolved';
   createdAt: string;
 }
@@ -310,8 +312,11 @@ export interface RefundRequest {
   transactionId: string;
   userId: string;
   userName: string;
+  email: string;
   amount: number;
   reason: string;
+  subscriptionType: string;
+  priority: 'high' | 'medium' | 'low';
   status: 'pending' | 'approved' | 'rejected';
   deadline: string;
   createdAt: string;
@@ -325,6 +330,8 @@ export interface Donation {
   amount: number;
   currency: string;
   cause: string;
+  provider: string;
+  receiptSent: boolean;
   status: 'pending' | 'completed' | 'failed';
   createdAt: string;
 }
@@ -374,6 +381,8 @@ export interface AuditLogEntry {
   action: string;
   entityType: string;
   entityId: string;
+  /** Nom lisible de l'élément concerné (jamais l'id brut affiché à l'écran). */
+  entityLabel: string;
   oldValue?: string;
   newValue?: string;
   ip?: string;

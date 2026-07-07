@@ -1,289 +1,148 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PageHeader } from '@/components/layout/page-header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { motion, type Variants } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Calendar,
-  Plus,
-  Users,
-  Clock,
-  Trophy,
-  FileText,
-  Edit,
-  Eye,
-  CheckCircle,
-} from 'lucide-react';
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { Calendar, Plus, Trophy, BookOpen, Clock, CheckCircle, ChevronRight, Home } from 'lucide-react';
 import { MOCK_EVENTS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 
-const EVENT_TYPE_CONFIG = {
-  mock_exam: { label: 'Examen blanc', color: 'bg-blue-100 text-blue-700', icon: <FileText className="h-4 w-4" /> },
-  olympiad: { label: 'Olympiade', color: 'bg-violet-100 text-violet-700', icon: <Trophy className="h-4 w-4" /> },
+const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.05, delayChildren: 0.04 } } };
+const rowItem: Variants = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.26, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } } };
+
+const TYPE_CFG: Record<string, { label: string; badge: string; icon: React.ReactNode }> = {
+  mock_exam: { label: 'Examen blanc', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300', icon: <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" /> },
+  olympiad:  { label: 'Olympiade',    badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300', icon: <Trophy className="h-5 w-5 text-violet-600 dark:text-violet-400" /> },
+};
+const STATUS_CFG: Record<string, { label: string; badge: string }> = {
+  draft:              { label: 'Brouillon',            badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
+  registration_open:  { label: 'Inscriptions ouvertes', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' },
+  in_progress:        { label: 'En cours',              badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+  grading:            { label: 'Correction',            badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
+  completed:          { label: 'Terminé',                badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
 };
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon?: React.ReactNode }> = {
-  draft: { label: 'Brouillon', color: 'bg-slate-100 text-slate-700' },
-  registration_open: { label: 'Inscriptions ouvertes', color: 'bg-emerald-100 text-emerald-700' },
-  in_progress: { label: 'En cours', color: 'bg-blue-100 text-blue-700' },
-  grading: { label: 'Correction', color: 'bg-amber-100 text-amber-700' },
-  completed: { label: 'Terminé', color: 'bg-slate-100 text-slate-700' },
-};
+type Tab = 'all' | 'mock_exam' | 'olympiad';
 
 export default function EventsPage() {
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [tab, setTab] = useState<Tab>('all');
+  const [showCreate, setShowCreate] = useState(false);
+
+  const filtered = tab === 'all' ? MOCK_EVENTS : MOCK_EVENTS.filter(e => e.type === tab);
+  const stats = {
+    active:   MOCK_EVENTS.filter(e => e.status === 'registration_open' || e.status === 'in_progress').length,
+    grading:  MOCK_EVENTS.filter(e => e.status === 'grading').length,
+    completed: MOCK_EVENTS.filter(e => e.status === 'completed').length,
+  };
 
   return (
     <>
       <div className="space-y-6">
-        <PageHeader
-          title="Événements"
-          description="Examens blancs et Olympiades"
-          breadcrumbs={[
-            { label: 'Engagement' },
-            { label: 'Événements' },
-          ]}
-          actions={
-            <Button onClick={() => setShowCreateDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nouvel événement
-            </Button>
-          }
-        />
-
-        {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Événements actifs</p>
-                  <p className="text-2xl font-bold">{MOCK_EVENTS.filter(e => e.status === 'registration_open' || e.status === 'in_progress').length}</p>
-                </div>
-                <Calendar className="h-8 w-8 text-primary/50" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Inscriptions (mois)</p>
-                  <p className="text-2xl font-bold">3,420</p>
-                </div>
-                <Users className="h-8 w-8 text-emerald-500/50" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">En correction</p>
-                  <p className="text-2xl font-bold text-amber-600">1</p>
-                </div>
-                <Clock className="h-8 w-8 text-amber-500/50" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Terminés</p>
-                  <p className="text-2xl font-bold">1</p>
-                </div>
-                <CheckCircle className="h-8 w-8 text-slate-500/50" />
-              </div>
-            </CardContent>
-          </Card>
+        <div className="space-y-3 pb-2">
+          <nav className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Home className="h-3 w-3" /><ChevronRight className="h-3 w-3 opacity-30" />
+            <span>Engagement</span><ChevronRight className="h-3 w-3 opacity-30" />
+            <span className="font-medium text-foreground/80">Événements</span>
+          </nav>
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Événements</h1>
+              <p className="mt-0.5 text-sm text-muted-foreground">Examens blancs et olympiades</p>
+            </div>
+            <Button size="sm" className="gap-2" onClick={() => setShowCreate(true)}><Plus className="h-4 w-4" />Nouvel événement</Button>
+          </div>
+          <div className="relative h-px w-full bg-border/40"><div className="absolute left-0 top-0 h-px w-16 brand-gradient-bg opacity-60" /></div>
         </div>
-
-        <Tabs defaultValue="all">
-          <TabsList>
-            <TabsTrigger value="all">Tous</TabsTrigger>
-            <TabsTrigger value="mock_exam">Examens blancs</TabsTrigger>
-            <TabsTrigger value="olympiad">Olympiades</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="all" className="mt-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {MOCK_EVENTS.map((event) => (
-                <Card key={event.id} className="overflow-hidden">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        {EVENT_TYPE_CONFIG[event.type as keyof typeof EVENT_TYPE_CONFIG].icon}
-                        <Badge variant="outline" className={EVENT_TYPE_CONFIG[event.type as keyof typeof EVENT_TYPE_CONFIG].color}>
-                          {EVENT_TYPE_CONFIG[event.type as keyof typeof EVENT_TYPE_CONFIG].label}
-                        </Badge>
-                      </div>
-                      <Badge variant="outline" className={STATUS_CONFIG[event.status as keyof typeof STATUS_CONFIG].color}>
-                        {STATUS_CONFIG[event.status as keyof typeof STATUS_CONFIG].label}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-lg mt-2">{event.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex flex-wrap gap-1">
-                      {event.classes.slice(0, 3).map((cls, idx) => (
-                        <Badge key={idx} variant="secondary" className="text-xs">
-                          {cls === 'cTle' ? 'Terminale' : cls === 'c1ere' ? '1ère' : cls === 'c3e' ? '3ème' : cls}
-                        </Badge>
-                      ))}
-                      {event.classes.length > 3 && (
-                        <Badge variant="outline" className="text-xs">+{event.classes.length - 3}</Badge>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Début</p>
-                        <p className="font-medium">{new Date(event.startDate).toLocaleDateString('fr-FR')}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Fin</p>
-                        <p className="font-medium">{new Date(event.endDate).toLocaleDateString('fr-FR')}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Tarif</p>
-                        <p className="font-medium">{event.price.toLocaleString()} FCFA</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Clôture inscr.</p>
-                        <p className="font-medium">{new Date(event.registrationDeadline).toLocaleDateString('fr-FR')}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 pt-2">
-                      <Button variant="outline" size="sm" className="flex-1">
-                        <Eye className="h-4 w-4 mr-1" />
-                        Voir
-                      </Button>
-                      <Button variant="outline" size="sm" className="flex-1">
-                        <Edit className="h-4 w-4 mr-1" />
-                        Modifier
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[
+            { label: 'Actifs',     value: stats.active,    icon: <Calendar className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />, color: 'bg-emerald-500/10' },
+            { label: 'Correction', value: stats.grading,   icon: <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />, color: 'bg-amber-500/10' },
+            { label: 'Terminés',   value: stats.completed, icon: <CheckCircle className="h-5 w-5 text-slate-600 dark:text-slate-400" />, color: 'bg-slate-500/10' },
+          ].map(s => (
+            <div key={s.label} className="flex items-center gap-3 rounded-2xl border border-border/40 bg-card px-5 py-4 shadow-sm">
+              <div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', s.color)}>{s.icon}</div>
+              <div><p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">{s.label}</p><p className="text-xl font-bold tabular-nums">{s.value}</p></div>
             </div>
-          </TabsContent>
-          <TabsContent value="mock_exam" className="mt-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              {MOCK_EVENTS.filter(e => e.type === 'mock_exam').map((event) => (
-                <Card key={event.id}>
-                  <CardHeader>
-                    <CardTitle>{event.name}</CardTitle>
-                  </CardHeader>
-                </Card>
-              ))}
+          ))}
+        </div>
+        <div className="flex items-center gap-1 rounded-2xl border border-border/40 bg-card p-1.5 shadow-sm w-fit">
+          {(['all', 'mock_exam', 'olympiad'] as Tab[]).map(t => (
+            <button key={t} onClick={() => setTab(t)} className={cn('rounded-full px-4 py-2 text-sm font-medium transition-all', tab === t ? 'bg-foreground/10 text-foreground' : 'text-muted-foreground hover:text-foreground')}>
+              {t === 'all' ? 'Tous' : t === 'mock_exam' ? 'Examens blancs' : 'Olympiades'}
+            </button>
+          ))}
+        </div>
+        <motion.div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" variants={stagger} initial="hidden" animate="show">
+          {filtered.map(e => {
+            const tc = TYPE_CFG[e.type] ?? TYPE_CFG.mock_exam;
+            const sc = STATUS_CFG[e.status] ?? STATUS_CFG.draft;
+            return (
+              <motion.div key={e.id} variants={rowItem} className="rounded-2xl border border-border/40 bg-card p-5 shadow-sm transition-all hover:border-border/70 hover:shadow-md">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/8">{tc.icon}</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-foreground leading-tight">{e.name}</p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', tc.badge)}>{tc.label}</span>
+                      <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', sc.badge)}>{sc.label}</span>
+                    </div>
+                  </div>
+                </div>
+                <dl className="space-y-1.5 text-xs text-muted-foreground">
+                  <div className="flex justify-between"><dt>Début</dt><dd className="font-medium text-foreground">{new Date(e.startDate).toLocaleDateString('fr-FR')}</dd></div>
+                  <div className="flex justify-between"><dt>Fin</dt><dd className="font-medium text-foreground">{new Date(e.endDate).toLocaleDateString('fr-FR')}</dd></div>
+                  <div className="flex justify-between"><dt>Clôture inscr.</dt><dd className="font-medium text-foreground">{new Date(e.registrationDeadline).toLocaleDateString('fr-FR')}</dd></div>
+                  <div className="flex justify-between"><dt>Tarif</dt><dd className="font-medium text-foreground">{e.price.toLocaleString('fr-FR')} FCFA</dd></div>
+                  <div className="flex justify-between"><dt>Classes</dt><dd className="font-medium text-foreground text-right">{e.classes.join(', ')}</dd></div>
+                </dl>
+              </motion.div>
+            );
+          })}
+          {filtered.length === 0 && (
+            <div className="col-span-full flex flex-col items-center justify-center py-20 text-muted-foreground/50">
+              <Calendar className="mb-3 h-10 w-10" />
+              <p className="text-sm font-medium">Aucun événement dans cette catégorie</p>
             </div>
-          </TabsContent>
-          <TabsContent value="olympiad" className="mt-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              {MOCK_EVENTS.filter(e => e.type === 'olympiad').map((event) => (
-                <Card key={event.id}>
-                  <CardHeader>
-                    <CardTitle>{event.name}</CardTitle>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-        </Tabs>
-
-        {/* Create Dialog */}
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Créer un événement</DialogTitle>
-              <DialogDescription>
-                Configurez un nouvel événement (examen blanc ou olympiade)
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Type</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mock_exam">Examen blanc</SelectItem>
-                      <SelectItem value="olympiad">Olympiade</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Pays</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cm">Cameroun</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Nom de l'événement</Label>
-                <Input placeholder="Ex: Bac Blanc National 2025" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Date de début</Label>
-                  <Input type="date" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Date de fin</Label>
-                  <Input type="date" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Clôture des inscriptions</Label>
-                  <Input type="date" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Tarif (FCFA)</Label>
-                  <Input type="number" placeholder="5000" />
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                Annuler
-              </Button>
-              <Button onClick={() => setShowCreateDialog(false)}>
-                Créer
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          )}
+        </motion.div>
       </div>
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Créer un événement</DialogTitle><DialogDescription>Configurez un nouvel événement (examen blanc ou olympiade).</DialogDescription></DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Type</Label>
+                <Select><SelectTrigger className="mt-1"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent><SelectItem value="mock_exam">Examen blanc</SelectItem><SelectItem value="olympiad">Olympiade</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div><Label>Pays</Label>
+                <Select><SelectTrigger className="mt-1"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent><SelectItem value="cm">Cameroun</SelectItem></SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div><Label>Nom de l&apos;événement</Label><Input className="mt-1" placeholder="Ex: Bac Blanc National 2025" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Date de début</Label><Input className="mt-1" type="date" /></div>
+              <div><Label>Date de fin</Label><Input className="mt-1" type="date" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Clôture des inscriptions</Label><Input className="mt-1" type="date" /></div>
+              <div><Label>Tarif (FCFA)</Label><Input className="mt-1" type="number" placeholder="5000" /></div>
+            </div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setShowCreate(false)}>Annuler</Button><Button onClick={() => setShowCreate(false)}>Créer</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

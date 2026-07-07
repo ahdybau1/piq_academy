@@ -24,8 +24,9 @@ const jsonInit = (method: string, body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
-export async function fetchSubscriptionTiers(): Promise<SubscriptionTierRow[]> {
-  const res = await fetch('/api/subscriptions/tiers');
+export async function fetchSubscriptionTiers(countryId?: string): Promise<SubscriptionTierRow[]> {
+  const qs = countryId ? `?countryId=${encodeURIComponent(countryId)}` : '';
+  const res = await fetch(`/api/subscriptions/tiers${qs}`);
   if (!res.ok) throw new Error('Impossible de charger les paliers.');
   return res.json();
 }

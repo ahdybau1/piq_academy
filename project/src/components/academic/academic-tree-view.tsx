@@ -35,6 +35,9 @@ import {
   ListOrdered,
   Network,
   TreePine,
+  Search,
+  AlertTriangle,
+  XCircle,
 } from 'lucide-react';
 import {
   createNode,
@@ -60,22 +63,27 @@ import { useApp } from '@/lib/app-context';
 
 interface NodeTypeStyle {
   icon: React.ReactNode;
-  color: string;
+  bg: string;
+  ring: string;
 }
 
 const KNOWN_NODE_TYPE_STYLES: Record<string, NodeTypeStyle> = {
-  pays: { icon: <Globe className="h-4 w-4" />, color: 'bg-blue-500' },
-  section: { icon: <Layers className="h-4 w-4" />, color: 'bg-emerald-500' },
-  enseignement: { icon: <School className="h-4 w-4" />, color: 'bg-violet-500' },
-  classe: { icon: <GraduationCap className="h-4 w-4" />, color: 'bg-amber-500' },
-  serie: { icon: <ListOrdered className="h-4 w-4" />, color: 'bg-rose-500' },
-  cycle: { icon: <Network className="h-4 w-4" />, color: 'bg-indigo-500' },
-  filiere: { icon: <TreePine className="h-4 w-4" />, color: 'bg-teal-500' },
+  pays: { icon: <Globe className="h-3.5 w-3.5" />, bg: 'bg-blue-500', ring: 'ring-blue-400/40' },
+  section: { icon: <Layers className="h-3.5 w-3.5" />, bg: 'bg-emerald-500', ring: 'ring-emerald-400/40' },
+  enseignement: { icon: <School className="h-3.5 w-3.5" />, bg: 'bg-violet-500', ring: 'ring-violet-400/40' },
+  classe: { icon: <GraduationCap className="h-3.5 w-3.5" />, bg: 'bg-amber-500', ring: 'ring-amber-400/40' },
+  serie: { icon: <ListOrdered className="h-3.5 w-3.5" />, bg: 'bg-rose-500', ring: 'ring-rose-400/40' },
+  cycle: { icon: <Network className="h-3.5 w-3.5" />, bg: 'bg-indigo-500', ring: 'ring-indigo-400/40' },
+  filiere: { icon: <TreePine className="h-3.5 w-3.5" />, bg: 'bg-teal-500', ring: 'ring-teal-400/40' },
 };
 
-const FALLBACK_NODE_TYPE_STYLE: NodeTypeStyle = { icon: <Layers className="h-4 w-4" />, color: 'bg-slate-500' };
+const FALLBACK_NODE_TYPE_STYLE: NodeTypeStyle = {
+  icon: <Layers className="h-3.5 w-3.5" />,
+  bg: 'bg-slate-500',
+  ring: 'ring-slate-400/40',
+};
 
-function nodeTypeStyle(nodeType: AcademicNodeType): NodeTypeStyle {
+function getNodeTypeStyle(nodeType: AcademicNodeType): NodeTypeStyle {
   return KNOWN_NODE_TYPE_STYLES[nodeType.toLowerCase()] ?? FALLBACK_NODE_TYPE_STYLE;
 }
 
@@ -105,9 +113,11 @@ function TreeNode({
 }) {
   const hasChildren = node.children.length > 0;
   const isExpanded = expandedNodes.has(node.id);
-  const config = nodeTypeStyle(node.node_type);
+  const isSelected = selectedId === node.id;
+  const config = getNodeTypeStyle(node.node_type);
 
-  const toggleExpand = () => {
+  const toggleExpand = (e: React.MouseEvent) => {
+    e.stopPropagation();
     const next = new Set(expandedNodes);
     if (isExpanded) next.delete(node.id);
     else next.add(node.id);
@@ -118,29 +128,21 @@ function TreeNode({
     <div className="select-none">
       <div
         className={cn(
-          'group flex cursor-pointer items-center gap-2 rounded-lg border-l-2 px-2 py-1.5 transition-all duration-150',
-          selectedId === node.id
-            ? 'border-l-primary bg-primary/10 shadow-sm'
-            : 'border-l-transparent hover:translate-x-0.5 hover:bg-muted',
-          !node.is_active && 'opacity-50'
+          'group relative flex cursor-pointer items-center gap-2 rounded-lg py-1.5 pr-2 transition-all duration-150',
+          isSelected ? 'bg-primary/8 text-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+          !node.is_active && 'opacity-40'
         )}
-        style={{ paddingLeft: `${depth * 20 + 8}px` }}
+        style={{ paddingLeft: `${depth * 18 + 8}px` }}
         onClick={() => onSelect(node)}
       >
+        {isSelected && <div className="absolute inset-y-0 left-0 w-0.5 rounded-full bg-primary" />}
+
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleExpand();
-          }}
-          className="flex h-5 w-5 items-center justify-center rounded transition-colors hover:bg-muted-foreground/10"
+          onClick={toggleExpand}
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-muted-foreground/10"
         >
           {hasChildren ? (
-            <ChevronRight
-              className={cn(
-                'h-3.5 w-3.5 text-muted-foreground transition-transform duration-200',
-                isExpanded && 'rotate-90'
-              )}
-            />
+            <ChevronRight className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform duration-200', isExpanded && 'rotate-90')} />
           ) : (
             <span className="h-3.5 w-3.5" />
           )}
@@ -148,28 +150,34 @@ function TreeNode({
 
         <div
           className={cn(
-            'flex h-5 w-5 items-center justify-center rounded text-white shadow-sm transition-transform duration-150 group-hover:rotate-6 group-hover:scale-110',
-            config.color
+            'flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-white shadow-sm ring-2 ring-transparent transition-all duration-150 group-hover:ring-2',
+            config.bg,
+            isSelected && config.ring
           )}
         >
           {config.icon}
         </div>
 
-        <span className={cn('flex-1 text-sm', !node.is_active && 'line-through')}>{node.name}</span>
+        <span className={cn('flex-1 truncate text-sm font-medium leading-tight', !node.is_active && 'line-through')}>{node.name}</span>
 
-        <Badge variant="outline" className="text-[10px] opacity-0 transition-opacity group-hover:opacity-100">
+        <span
+          className={cn(
+            'shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100',
+            isSelected && 'opacity-100'
+          )}
+        >
           {nodeTypeLabel(node.node_type)}
-        </Badge>
+        </span>
 
         {!node.is_active && (
-          <Badge variant="outline" className="text-[10px]">
+          <span className="shrink-0 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
             Désactivé
-          </Badge>
+          </span>
         )}
       </div>
 
       {hasChildren && isExpanded && (
-        <div className="ml-2 animate-in border-l border-border fade-in slide-in-from-top-1 duration-200">
+        <div className="ml-5 animate-in border-l border-border/40 fade-in slide-in-from-top-1 duration-150">
           {node.children.map((child) => (
             <TreeNode
               key={child.id}
@@ -252,11 +260,7 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
   // réservé est `pays` (toujours une racine). Tout autre nœud peut être créé
   // à n'importe quelle profondeur, avec un type de nœud personnalisé.
   const moveTargetOptions = selectedNode
-    ? allNodes.filter(
-        (n) =>
-          n.id !== selectedNode.id &&
-          !flattenTree([selectedNode]).some((d) => d.id === n.id)
-      )
+    ? allNodes.filter((n) => n.id !== selectedNode.id && !flattenTree([selectedNode]).some((d) => d.id === n.id))
     : [];
 
   const openCreateChild = () => {
@@ -301,6 +305,8 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
     setHistory(entries);
   };
 
+  const config = selectedNode ? getNodeTypeStyle(selectedNode.node_type) : null;
+
   return (
     <div className="animate-in space-y-6 fade-in slide-in-from-bottom-2 duration-500">
       <PageHeader
@@ -319,7 +325,7 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
               setShowCreateRoot(true);
             }}
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             Ajouter un pays
           </Button>
         }
@@ -327,22 +333,22 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
 
       <div className="grid gap-4 sm:grid-cols-3">
         {[
-          { label: 'Pays configurés', value: countryCount, icon: Globe, color: 'text-blue-500' },
-          { label: 'Nœuds au total', value: nodeCount, icon: Layers, color: 'text-emerald-500' },
-          { label: 'Profondeur maximale', value: maxDepth, icon: TreePine, color: 'text-violet-500' },
-        ].map((stat, i) => (
+          { label: 'Pays configurés', value: countryCount, icon: Globe, bg: 'bg-blue-500/12 text-blue-600', border: 'from-blue-500' },
+          { label: 'Nœuds au total', value: nodeCount, icon: Layers, bg: 'bg-emerald-500/12 text-emerald-600', border: 'from-emerald-500' },
+          { label: 'Profondeur maximale', value: maxDepth, icon: TreePine, bg: 'bg-violet-500/12 text-violet-600', border: 'from-violet-500' },
+        ].map((stat) => (
           <Card
             key={stat.label}
-            className="animate-in fade-in slide-in-from-bottom-2 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
-            style={{ animationDelay: `${i * 75}ms` }}
+            className="relative overflow-hidden border border-border/60 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
           >
-            <CardContent className="flex items-center gap-3 py-4">
-              <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted', stat.color)}>
-                <stat.icon className="h-5 w-5" />
-              </div>
+            <div className={cn('absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r to-transparent opacity-50', stat.border)} />
+            <CardContent className="flex items-center justify-between p-5">
               <div>
-                <p className="text-2xl font-semibold tabular-nums">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{stat.label}</p>
+                <p className="mt-1.5 text-2xl font-bold tabular-nums">{stat.value}</p>
+              </div>
+              <div className={cn('flex h-11 w-11 items-center justify-center rounded-xl', stat.bg)}>
+                <stat.icon className="h-5 w-5" />
               </div>
             </CardContent>
           </Card>
@@ -350,59 +356,69 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
       </div>
 
       {actionError && (
-        <div className="animate-in rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 fade-in slide-in-from-top-1 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400">
+        <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-400">
+          <XCircle className="h-4 w-4 shrink-0" />
           {actionError}
         </div>
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="transition-shadow duration-300 hover:shadow-md lg:col-span-2">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle>Structure hiérarchique</CardTitle>
-              <Input
-                placeholder="Rechercher..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-[200px]"
-              />
+        <Card className="border border-border/60 shadow-sm lg:col-span-2">
+          <CardHeader className="border-b border-border/50 pb-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-base font-semibold">Structure hiérarchique</CardTitle>
+                <CardDescription className="mt-0.5">Cliquez sur un nœud pour voir les détails et actions disponibles</CardDescription>
+              </div>
+              <div className="relative w-[200px] shrink-0">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-8 pl-8 text-sm"
+                />
+              </div>
             </div>
-            <CardDescription>Cliquez sur un nœud pour voir les détails et actions disponibles</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[500px]">
+          <CardContent className="p-3">
+            <ScrollArea className="h-[540px] pr-2">
               {tree.length === 0 && !searchQuery ? (
-                <div className="text-center text-muted-foreground py-8 text-sm">
-                  Aucun pays configuré. Commencez par « Ajouter un pays ».
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
+                    <Globe className="h-7 w-7 text-muted-foreground/50" />
+                  </div>
+                  <p className="font-semibold text-foreground">Aucun pays configuré</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Commencez par « Ajouter un pays » pour construire l&apos;arbre.</p>
                 </div>
               ) : searchQuery && filteredNodes ? (
-                <div className="space-y-1">
-                  {filteredNodes.map((node) => (
-                    <div
-                      key={node.id}
-                      className={cn(
-                        'flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer transition-colors hover:bg-muted',
-                        selectedId === node.id && 'bg-primary/10'
-                      )}
-                      onClick={() => setSelectedId(node.id)}
-                    >
+                <div className="space-y-0.5">
+                  {filteredNodes.map((node) => {
+                    const c = getNodeTypeStyle(node.node_type);
+                    return (
                       <div
+                        key={node.id}
                         className={cn(
-                          'h-5 w-5 rounded flex items-center justify-center text-white',
-                          nodeTypeStyle(node.node_type).color
+                          'flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors',
+                          selectedId === node.id
+                            ? 'bg-primary/8 text-foreground'
+                            : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
                         )}
+                        onClick={() => setSelectedId(node.id)}
                       >
-                        {nodeTypeStyle(node.node_type).icon}
+                        <div className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-white shadow-sm', c.bg)}>
+                          {c.icon}
+                        </div>
+                        <span className="flex-1 text-sm font-medium">{node.name}</span>
+                        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          {nodeTypeLabel(node.node_type)}
+                        </span>
                       </div>
-                      <span className="text-sm">{node.name}</span>
-                      <Badge variant="outline" className="text-[10px]">
-                        {nodeTypeLabel(node.node_type)}
-                      </Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {tree.map((node) => (
                     <TreeNode
                       key={node.id}
@@ -419,135 +435,142 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
           </CardContent>
         </Card>
 
-        <Card className="transition-shadow duration-300 hover:shadow-md">
-          <CardHeader>
-            <CardTitle>{selectedNode ? 'Détails du nœud' : 'Sélectionnez un nœud'}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {selectedNode ? (
-              <div key={selectedNode.id} className="animate-in space-y-4 fade-in slide-in-from-right-2 duration-300">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        'h-10 w-10 rounded-lg flex items-center justify-center text-white shadow-sm transition-transform duration-300 hover:scale-105',
-                        nodeTypeStyle(selectedNode.node_type).color
-                      )}
-                    >
-                      {nodeTypeStyle(selectedNode.node_type).icon}
-                    </div>
-                    <div>
-                      <p className="font-semibold">{selectedNode.name}</p>
-                      <Badge variant="outline" className="text-xs">
-                        {nodeTypeLabel(selectedNode.node_type)}
-                      </Badge>
-                    </div>
+        <Card className="overflow-hidden border border-border/60 shadow-sm">
+          {!selectedNode ? (
+            <div className="flex flex-col items-center justify-center px-6 py-24 text-center">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
+                <Layers className="h-7 w-7 text-muted-foreground/50" />
+              </div>
+              <p className="font-semibold text-foreground">Aucun nœud sélectionné</p>
+              <p className="mt-1 text-sm text-muted-foreground">Cliquez sur un nœud dans l&apos;arbre pour voir ses détails.</p>
+            </div>
+          ) : (
+            <div key={selectedNode.id} className="animate-in fade-in slide-in-from-right-2 duration-300">
+              <div className="brand-gradient-bg p-5 text-white">
+                <div className="flex items-center gap-3">
+                  <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white shadow-lg ring-2 ring-white/20', config?.bg)}>
+                    {config?.icon &&
+                      React.cloneElement(config.icon as React.ReactElement<React.SVGProps<SVGSVGElement>>, { className: 'h-6 w-6' })}
                   </div>
-
-                  <div className="grid gap-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">ID:</span>
-                      <span className="font-mono text-xs">{selectedNode.id}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Statut:</span>
-                      <Badge variant={selectedNode.is_active ? 'default' : 'secondary'} className="text-xs">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-bold leading-tight">{selectedNode.name}</p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-semibold">
+                        {nodeTypeLabel(selectedNode.node_type)}
+                      </span>
+                      <span
+                        className={cn(
+                          'rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                          selectedNode.is_active ? 'bg-emerald-500/30 text-emerald-100' : 'bg-rose-500/30 text-rose-100'
+                        )}
+                      >
                         {selectedNode.is_active ? 'Actif' : 'Désactivé'}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Enfants:</span>
-                      <span>{selectedNode.children.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Créé le:</span>
-                      <span>{selectedNode.created_at ? new Date(selectedNode.created_at).toLocaleDateString('fr-FR') : '-'}</span>
+                      </span>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="border-t pt-4 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground">Actions</p>
+              <div className="space-y-5 p-5">
+                <dl className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Enfants directs</dt>
+                    <dd className="font-semibold">{selectedNode.children.length}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Créé le</dt>
+                    <dd className="font-medium">
+                      {selectedNode.created_at ? new Date(selectedNode.created_at).toLocaleDateString('fr-FR') : '—'}
+                    </dd>
+                  </div>
+                </dl>
+
+                {selectedNode.children.length > 0 && (
+                  <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <div>
+                      <p className="font-semibold">Ce nœud contient {selectedNode.children.length} enfant(s)</p>
+                      <p className="mt-0.5 opacity-80">La suppression ou désactivation affectera les nœuds enfants.</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2 border-t border-border/50 pt-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Actions</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" size="sm" onClick={openEdit} disabled={isPending}>
-                      <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={openEdit} disabled={isPending}>
+                      <Pencil className="mr-1.5 h-3.5 w-3.5" />
                       Modifier
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={openCreateChild}
-                      disabled={isPending}
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1.5" />
+                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={openCreateChild} disabled={isPending}>
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />
                       Enfant
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
+                      className="h-8 text-xs"
                       disabled={isPending}
                       onClick={() => runAction(() => duplicateNode({ id: selectedNode.id }))}
                     >
-                      <Copy className="h-3.5 w-3.5 mr-1.5" />
+                      <Copy className="mr-1.5 h-3.5 w-3.5" />
                       Dupliquer
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
+                      className="h-8 text-xs"
                       onClick={openMove}
                       disabled={isPending || selectedNode.node_type === ROOT_NODE_TYPE}
                     >
-                      <MoveRight className="h-3.5 w-3.5 mr-1.5" />
+                      <MoveRight className="mr-1.5 h-3.5 w-3.5" />
                       Déplacer
                     </Button>
-                    <Button variant="outline" size="sm" className="col-span-2" onClick={openHistory}>
-                      <History className="h-3.5 w-3.5 mr-1.5" />
+                    <Button variant="outline" size="sm" className="col-span-2 h-8 text-xs" onClick={openHistory}>
+                      <History className="mr-1.5 h-3.5 w-3.5" />
                       Historique
                     </Button>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       disabled={isPending}
-                      className={selectedNode.is_active ? 'text-amber-600' : 'text-emerald-600'}
-                      onClick={() =>
-                        runAction(() => setNodeActive({ id: selectedNode.id, isActive: !selectedNode.is_active }))
-                      }
+                      className={cn(
+                        'h-8 text-xs',
+                        selectedNode.is_active
+                          ? 'border-amber-200 text-amber-700 hover:bg-amber-50'
+                          : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                      )}
+                      onClick={() => runAction(() => setNodeActive({ id: selectedNode.id, isActive: !selectedNode.is_active }))}
                     >
                       {selectedNode.is_active ? (
                         <>
-                          <ToggleLeft className="h-3.5 w-3.5 mr-1.5" />
+                          <ToggleLeft className="mr-1.5 h-3.5 w-3.5" />
                           Désactiver
                         </>
                       ) : (
                         <>
-                          <ToggleRight className="h-3.5 w-3.5 mr-1.5" />
+                          <ToggleRight className="mr-1.5 h-3.5 w-3.5" />
                           Réactiver
                         </>
                       )}
                     </Button>
-                    <Button variant="outline" size="sm" className="text-red-600" onClick={openDelete} disabled={isPending}>
-                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 border-rose-200 text-xs text-rose-700 hover:bg-rose-50"
+                      onClick={openDelete}
+                      disabled={isPending}
+                    >
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                       Supprimer
                     </Button>
                   </div>
                 </div>
-
-                {selectedNode.children.length > 0 && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400">
-                    <p className="font-medium">Ce nœud contient {selectedNode.children.length} enfant(s)</p>
-                    <p className="text-xs mt-1">La suppression ou désactivation affectera les nœuds enfants.</p>
-                  </div>
-                )}
               </div>
-            ) : (
-              <div className="text-center text-muted-foreground py-8">
-                <Layers className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>Sélectionnez un nœud dans l&apos;arbre pour voir ses détails</p>
-              </div>
-            )}
-          </CardContent>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -609,9 +632,7 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
                     onClick={() => setNewType(t)}
                     className={cn(
                       'rounded-full border px-2.5 py-0.5 text-xs transition-colors',
-                      newType === t
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border text-muted-foreground hover:bg-muted'
+                      newType === t ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted'
                     )}
                   >
                     {nodeTypeLabel(t)}
@@ -744,9 +765,9 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
               dependencies.forumThreadCount > 0 ||
               dependencies.whatsappCommunityCount > 0 ||
               dependencies.contentTranslationClassCount > 0) && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 space-y-2 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400">
+              <div className="space-y-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400">
                 <p className="font-medium">Attention - Dépendances</p>
-                <ul className="ml-4 list-disc text-xs space-y-1">
+                <ul className="ml-4 list-disc space-y-1 text-xs">
                   {dependencies.childCount > 0 && <li>{dependencies.childCount} nœud(s) enfant(s)</li>}
                   {dependencies.linkedSubjectCount > 0 && <li>{dependencies.linkedSubjectCount} matière(s) rattachée(s)</li>}
                   {dependencies.activeProfileCount > 0 && (
@@ -837,21 +858,19 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
           </DialogHeader>
           <ScrollArea className="max-h-[400px]">
             {history === null ? (
-              <p className="text-sm text-muted-foreground py-4">Chargement...</p>
+              <p className="py-4 text-sm text-muted-foreground">Chargement...</p>
             ) : history.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">Aucune modification enregistrée.</p>
+              <p className="py-4 text-sm text-muted-foreground">Aucune modification enregistrée.</p>
             ) : (
-              <div className="space-y-3 py-2">
+              <div className="space-y-2 py-2">
                 {history.map((entry) => (
-                  <div key={entry.id} className="border-b border-border pb-2 text-sm">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline" className="text-[10px] uppercase">
-                        {entry.action_type}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {entry.created_at ? new Date(entry.created_at).toLocaleString('fr-FR') : '-'}
-                      </span>
-                    </div>
+                  <div key={entry.id} className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-sm">
+                    <Badge variant="outline" className="text-[10px] uppercase">
+                      {entry.action_type}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {entry.created_at ? new Date(entry.created_at).toLocaleString('fr-FR') : '-'}
+                    </span>
                   </div>
                 ))}
               </div>

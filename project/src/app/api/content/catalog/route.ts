@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'subjectId et elementType sont requis.' }, { status: 400 });
   }
 
-  const result = await createCatalogEntry({ subjectId: body.subjectId, elementType: body.elementType });
+  const result = await createCatalogEntry({ subjectId: body.subjectId, elementType: body.elementType, adminId: guard.admin.id });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

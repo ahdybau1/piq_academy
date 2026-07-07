@@ -1,5 +1,6 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
+import { EXERCISE_FORMATS } from '@/lib/exercises/constants';
 import type {
   SubjectRow,
   ChapterRow,
@@ -13,10 +14,37 @@ import type {
   EstablishmentRow,
 } from './types';
 
+const EXERCISE_FORMAT_LABELS = new Map(EXERCISE_FORMATS.map((f) => [f.value, f.label]));
+
 export type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
-export async function listSubjects(): Promise<SubjectRow[]> {
+/**
+ * @param countryId Filtre optionnel : ne retourne que les matières rattachées à un nœud
+ * (racine ou descendant) de ce pays. Omis ou `undefined`, le comportement est inchangé
+ * (toutes les matières).
+ */
+export async function listSubjects(countryId?: string): Promise<SubjectRow[]> {
   const supabase = await createClient();
+
+  if (countryId) {
+    const { data: nodeData, error: nodeError } = await supabase
+      .from('academic_nodes')
+      .select('id')
+      .or(`id.eq.${countryId},country_id.eq.${countryId}`);
+    if (nodeError) throw new Error(nodeError.message);
+
+    const nodeIds = (nodeData ?? []).map((n) => n.id);
+    if (nodeIds.length === 0) return [];
+
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('id, name, node_id, created_at')
+      .in('node_id', nodeIds)
+      .order('name');
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  }
+
   const { data, error } = await supabase.from('subjects').select('id, name, node_id, created_at').order('name');
   if (error) throw new Error(error.message);
   return data ?? [];
@@ -118,7 +146,7 @@ export async function listLessons(chapterId: string): Promise<LessonWithStatus[]
   const supabase = await createClient();
   const { data: lessons, error } = await supabase
     .from('lessons')
-    .select('id, chapter_id, title, content_json, display_order, created_at, updated_at')
+    .select('id, chapter_id, title, content_json, display_order, catalog_id, created_at, updated_at')
     .eq('chapter_id', chapterId)
     .order('display_order', { ascending: true });
   if (error) throw new Error(error.message);
@@ -140,7 +168,14 @@ export async function listLessons(chapterId: string): Promise<LessonWithStatus[]
   return lessons.map((lesson) => ({ ...lesson, latestVersion: latestByLesson.get(lesson.id) ?? null }));
 }
 
-export async function listValidationQueue(status?: string): Promise<ValidationQueueItem[]> {
+/**
+ * @param countryId Filtre optionnel : ne retourne que les soumissions dont la matière
+ * (via lesson/exercise → chapter → subject → node_id, ou directement subject pour un
+ * exercice indépendant) appartient à ce pays. Les entrées dont on ne peut pas résoudre
+ * le pays (content_type autre que 'lesson'/'exercise') sont exclues quand un filtre est
+ * actif — on ne les affiche que dans la vue "tous les pays".
+ */
+export async function listValidationQueue(status?: string, countryId?: string): Promise<ValidationQueueItem[]> {
   const supabase = await createClient();
   let query = supabase
     .from('validation_queue')
@@ -154,43 +189,110 @@ export async function listValidationQueue(status?: string): Promise<ValidationQu
   if (!rows || rows.length === 0) return [];
 
   const lessonIds = rows.filter((r) => r.content_type === 'lesson').map((r) => r.content_id);
-  if (lessonIds.length === 0) {
-    return rows.map((r) => ({ ...r, lessonTitle: null, chapterTitle: null, subjectName: null }));
-  }
+  const exerciseIds = rows.filter((r) => r.content_type === 'exercise').map((r) => r.content_id);
 
   const { data: lessons, error: lessonsError } = await supabase
     .from('lessons')
     .select('id, title, chapter_id')
-    .in('id', lessonIds);
+    .in('id', lessonIds.length > 0 ? lessonIds : ['00000000-0000-0000-0000-000000000000']);
   if (lessonsError) throw new Error(lessonsError.message);
 
-  const chapterIds = Array.from(new Set((lessons ?? []).map((l) => l.chapter_id)));
+  const { data: exercises, error: exercisesError } = await supabase
+    .from('exercises')
+    .select('id, format, lesson_id, chapter_id, subject_id')
+    .in('id', exerciseIds.length > 0 ? exerciseIds : ['00000000-0000-0000-0000-000000000000']);
+  if (exercisesError) throw new Error(exercisesError.message);
+
+  const lessonById = new Map((lessons ?? []).map((l) => [l.id, l]));
+  const exerciseById = new Map((exercises ?? []).map((e) => [e.id, e]));
+
+  const chapterIds = new Set<string>();
+  (lessons ?? []).forEach((l) => chapterIds.add(l.chapter_id));
+  (exercises ?? []).forEach((e) => {
+    if (e.chapter_id) chapterIds.add(e.chapter_id);
+  });
+
   const { data: chapters, error: chaptersError } = await supabase
     .from('chapters')
     .select('id, title, subject_id')
-    .in('id', chapterIds.length > 0 ? chapterIds : ['00000000-0000-0000-0000-000000000000']);
+    .in('id', chapterIds.size > 0 ? Array.from(chapterIds) : ['00000000-0000-0000-0000-000000000000']);
   if (chaptersError) throw new Error(chaptersError.message);
+  const chapterById = new Map((chapters ?? []).map((c) => [c.id, c]));
 
-  const subjectIds = Array.from(new Set((chapters ?? []).map((c) => c.subject_id)));
+  const subjectIds = new Set<string>();
+  (chapters ?? []).forEach((c) => subjectIds.add(c.subject_id));
+  (exercises ?? []).forEach((e) => {
+    if (e.subject_id) subjectIds.add(e.subject_id);
+  });
+
   const { data: subjects, error: subjectsError } = await supabase
     .from('subjects')
-    .select('id, name')
-    .in('id', subjectIds.length > 0 ? subjectIds : ['00000000-0000-0000-0000-000000000000']);
+    .select('id, name, node_id')
+    .in('id', subjectIds.size > 0 ? Array.from(subjectIds) : ['00000000-0000-0000-0000-000000000000']);
   if (subjectsError) throw new Error(subjectsError.message);
+  const subjectById = new Map((subjects ?? []).map((s) => [s.id, s]));
 
-  const lessonById = new Map((lessons ?? []).map((l) => [l.id, l]));
-  const chapterById = new Map((chapters ?? []).map((c) => [c.id, c]));
-  const subjectById = new Map((subjects ?? []).map((s) => [s.id, s.name]));
+  let allowedSubjectIds: Set<string> | null = null;
+  if (countryId) {
+    const { data: nodeData, error: nodeError } = await supabase
+      .from('academic_nodes')
+      .select('id')
+      .or(`id.eq.${countryId},country_id.eq.${countryId}`);
+    if (nodeError) throw new Error(nodeError.message);
+    const nodeIds = new Set((nodeData ?? []).map((n) => n.id));
+    allowedSubjectIds = new Set((subjects ?? []).filter((s) => nodeIds.has(s.node_id)).map((s) => s.id));
+  }
 
-  return rows.map((r) => {
-    if (r.content_type !== 'lesson') return { ...r, lessonTitle: null, chapterTitle: null, subjectName: null };
-    const lesson = lessonById.get(r.content_id);
-    const chapter = lesson ? chapterById.get(lesson.chapter_id) : undefined;
-    return {
-      ...r,
-      lessonTitle: lesson?.title ?? null,
-      chapterTitle: chapter?.title ?? null,
-      subjectName: chapter ? subjectById.get(chapter.subject_id) ?? null : null,
-    };
-  });
+  /** Résout (chapterId, subjectId) pour une leçon ou un exercice, quel que soit son niveau de rattachement. */
+  function resolveSubjectId(r: NonNullable<typeof rows>[number]): string | null {
+    if (r.content_type === 'lesson') {
+      const lesson = lessonById.get(r.content_id);
+      const chapter = lesson ? chapterById.get(lesson.chapter_id) : undefined;
+      return chapter?.subject_id ?? null;
+    }
+    if (r.content_type === 'exercise') {
+      const exercise = exerciseById.get(r.content_id);
+      if (!exercise) return null;
+      if (exercise.subject_id) return exercise.subject_id;
+      if (exercise.chapter_id) return chapterById.get(exercise.chapter_id)?.subject_id ?? null;
+      if (exercise.lesson_id) {
+        const lesson = lessonById.get(exercise.lesson_id);
+        const chapter = lesson ? chapterById.get(lesson.chapter_id) : undefined;
+        return chapter?.subject_id ?? null;
+      }
+    }
+    return null;
+  }
+
+  return rows
+    .filter((r) => {
+      if (!allowedSubjectIds) return true;
+      if (r.content_type !== 'lesson' && r.content_type !== 'exercise') return false;
+      const subjectId = resolveSubjectId(r);
+      return subjectId ? allowedSubjectIds.has(subjectId) : false;
+    })
+    .map((r) => {
+      if (r.content_type === 'lesson') {
+        const lesson = lessonById.get(r.content_id);
+        const chapter = lesson ? chapterById.get(lesson.chapter_id) : undefined;
+        return {
+          ...r,
+          lessonTitle: lesson?.title ?? null,
+          chapterTitle: chapter?.title ?? null,
+          subjectName: chapter ? subjectById.get(chapter.subject_id)?.name ?? null : null,
+        };
+      }
+      if (r.content_type === 'exercise') {
+        const exercise = exerciseById.get(r.content_id);
+        const chapter = exercise?.chapter_id ? chapterById.get(exercise.chapter_id) : undefined;
+        const subjectId = resolveSubjectId(r);
+        return {
+          ...r,
+          lessonTitle: exercise ? `Exercice — ${EXERCISE_FORMAT_LABELS.get(exercise.format) ?? exercise.format}` : null,
+          chapterTitle: chapter?.title ?? null,
+          subjectName: subjectId ? subjectById.get(subjectId)?.name ?? null : null,
+        };
+      }
+      return { ...r, lessonTitle: null, chapterTitle: null, subjectName: null };
+    });
 }

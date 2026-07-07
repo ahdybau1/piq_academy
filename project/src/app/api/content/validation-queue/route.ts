@@ -7,7 +7,9 @@ export async function GET(request: Request) {
   const guard = await requireApiRole(CONTENT_ADMIN_ROLES);
   if ('response' in guard) return guard.response;
 
-  const status = new URL(request.url).searchParams.get('status') ?? undefined;
-  const items = await listValidationQueue(status);
+  const url = new URL(request.url);
+  const status = url.searchParams.get('status') ?? undefined;
+  const countryId = url.searchParams.get('countryId') ?? undefined;
+  const items = await listValidationQueue(status, countryId);
   return NextResponse.json(items);
 }

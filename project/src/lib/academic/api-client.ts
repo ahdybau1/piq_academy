@@ -19,8 +19,9 @@ async function request(url: string, init?: RequestInit): Promise<ApiResult> {
   return {};
 }
 
-export async function fetchAcademicNodes(): Promise<AcademicNodeRow[]> {
-  const res = await fetch('/api/academic/nodes');
+export async function fetchAcademicNodes(countryId?: string): Promise<AcademicNodeRow[]> {
+  const qs = countryId ? `?countryId=${encodeURIComponent(countryId)}` : '';
+  const res = await fetch(`/api/academic/nodes${qs}`);
   if (!res.ok) throw new Error("Impossible de charger l'arbre académique.");
   return res.json();
 }

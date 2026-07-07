@@ -5,11 +5,12 @@ import { createNode } from '@/lib/academic/mutations';
 import { listAcademicNodes } from '@/lib/academic/queries';
 import type { AcademicNodeType } from '@/lib/academic/types';
 
-export async function GET() {
+export async function GET(request: Request) {
   const guard = await requireApiRole(ACADEMIC_ADMIN_ROLES);
   if ('response' in guard) return guard.response;
 
-  const nodes = await listAcademicNodes();
+  const countryId = new URL(request.url).searchParams.get('countryId') ?? undefined;
+  const nodes = await listAcademicNodes(countryId);
   return NextResponse.json(nodes);
 }
 

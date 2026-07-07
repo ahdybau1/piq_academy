@@ -27,6 +27,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -83,6 +84,7 @@
   --accent: oklch(0.78 0.13 200);
   --accent-foreground: oklch(0.14 0.05 260);
   --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
   --border: oklch(0.92 0.012 260);
   --input: oklch(0.93 0.01 260);
   --ring: oklch(0.55 0.21 258);
@@ -96,6 +98,9 @@
   --chart-4: oklch(0.75 0.15 85);
   --chart-5: oklch(0.55 0.22 25);
   --radius: 0.6rem;
+
+  /* Fond de page : léger contraste avec les cards, repris du nouveau design */
+  --page-bg: oklch(0.97 0.006 250);
 
   /* Sidebar : noir quasi total, identique clair/sombre — même coque que le
      logo et l'écran de connexion, pour une cohérence de marque totale. */
@@ -125,6 +130,7 @@
   --accent: oklch(0.78 0.13 200);
   --accent-foreground: oklch(0.1 0.02 260);
   --destructive: oklch(0.62 0.2 25);
+  --destructive-foreground: oklch(0.99 0 0);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.78 0.13 200);
@@ -143,6 +149,8 @@
 
   /* La coque (sidebar) est déjà noire en clair comme en sombre — pas besoin
      de la redéfinir ici, elle reste identique dans les deux modes. */
+
+  --page-bg: oklch(0.08 0.012 260);
 }
 
 @layer base {
@@ -220,6 +228,101 @@
 .brand-gradient-ring {
   box-shadow: 0 0 0 1px color-mix(in oklch, var(--brand-to) 40%, transparent);
 }
+
+.brand-gradient-border {
+  border-image: linear-gradient(135deg, var(--brand-from), var(--brand-to)) 1;
+}
+
+/* ── Glow effects ──────────────────────────────────────── */
+.glow-primary {
+  box-shadow: 0 0 24px -4px color-mix(in oklch, var(--primary) 35%, transparent);
+}
+.glow-accent {
+  box-shadow: 0 0 24px -4px color-mix(in oklch, var(--accent) 35%, transparent);
+}
+.glow-success {
+  box-shadow: 0 0 20px -4px color-mix(in oklch, var(--success) 30%, transparent);
+}
+
+/* ── Card elevation on hover ────────────────────────────── */
+.card-hover {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px -8px oklch(0.4 0.06 260 / 0.15);
+}
+.dark .card-hover:hover {
+  box-shadow: 0 8px 30px -8px oklch(0 0 0 / 0.4);
+}
+
+/* ── Shimmer (skeleton) ────────────────────────────────── */
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position:  200% 0; }
+}
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.92 0.008 260) 25%,
+    oklch(0.96 0.004 260) 50%,
+    oklch(0.92 0.008 260) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite;
+}
+.dark .shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.16 0.018 260) 25%,
+    oklch(0.20 0.022 260) 50%,
+    oklch(0.16 0.018 260) 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* ── Pulse dot ─────────────────────────────────────────── */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.8); opacity: 1; }
+  80%  { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.pulse-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  opacity: 0;
+}
+
+/* ── Page loader spinner ───────────────────────────────── */
+@keyframes spin-dual {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes spin-dual-reverse {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(-360deg); }
+}
+
+/* ── Stat card accent line ─────────────────────────────── */
+.stat-accent-blue    { background: linear-gradient(90deg, oklch(0.55 0.21 258), transparent); }
+.stat-accent-emerald { background: linear-gradient(90deg, oklch(0.55 0.18 145), transparent); }
+.stat-accent-amber   { background: linear-gradient(90deg, oklch(0.75 0.15 85), transparent); }
+.stat-accent-violet  { background: linear-gradient(90deg, oklch(0.52 0.20 285), transparent); }
+.stat-accent-rose    { background: linear-gradient(90deg, oklch(0.58 0.22 15), transparent); }
+.stat-accent-cyan    { background: linear-gradient(90deg, oklch(0.78 0.13 200), transparent); }
+.stat-accent-indigo  { background: linear-gradient(90deg, oklch(0.50 0.22 270), transparent); }
+
+/* ── Sidebar glow on hover ─────────────────────────────── */
+.sidebar-item-glow:hover {
+  text-shadow: 0 0 20px color-mix(in oklch, var(--sidebar-primary) 60%, transparent);
+}
+
+/* ── Number tabular ────────────────────────────────────── */
+.tabular { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
 
 /* Status indicators */
 .status-active {

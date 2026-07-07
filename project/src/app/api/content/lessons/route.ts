@@ -19,15 +19,21 @@ export async function POST(request: Request) {
   const guard = await requireApiRole(CONTENT_ADMIN_ROLES);
   if ('response' in guard) return guard.response;
 
-  const body = (await request.json()) as { chapterId?: string; title?: string; bodyText?: string };
-  if (typeof body.chapterId !== 'string' || typeof body.title !== 'string' || typeof body.bodyText !== 'string') {
-    return NextResponse.json({ error: 'chapterId, title et bodyText sont requis.' }, { status: 400 });
+  const body = (await request.json()) as {
+    chapterId?: string;
+    title?: string;
+    contentJson?: Record<string, unknown>;
+    catalogId?: string | null;
+  };
+  if (typeof body.chapterId !== 'string' || typeof body.title !== 'string' || typeof body.contentJson !== 'object' || body.contentJson === null) {
+    return NextResponse.json({ error: 'chapterId, title et contentJson sont requis.' }, { status: 400 });
   }
 
   const result = await createLesson({
     chapterId: body.chapterId,
     title: body.title,
-    bodyText: body.bodyText,
+    contentJson: body.contentJson,
+    catalogId: body.catalogId ?? null,
     adminId: guard.admin.id,
   });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });

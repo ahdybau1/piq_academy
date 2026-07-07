@@ -4,11 +4,12 @@ import { CONTENT_ADMIN_ROLES } from '@/lib/content/constants';
 import { listSubjects } from '@/lib/content/queries';
 import { createSubject } from '@/lib/content/mutations';
 
-export async function GET() {
+export async function GET(request: Request) {
   const guard = await requireApiRole(CONTENT_ADMIN_ROLES);
   if ('response' in guard) return guard.response;
 
-  const subjects = await listSubjects();
+  const countryId = new URL(request.url).searchParams.get('countryId') ?? undefined;
+  const subjects = await listSubjects(countryId);
   return NextResponse.json(subjects);
 }
 

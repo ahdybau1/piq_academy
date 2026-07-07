@@ -35,8 +35,9 @@ const jsonInit = (method: string, body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
-export async function fetchSubjects(): Promise<SubjectRow[]> {
-  const res = await fetch('/api/content/subjects');
+export async function fetchSubjects(countryId?: string): Promise<SubjectRow[]> {
+  const qs = countryId ? `?countryId=${encodeURIComponent(countryId)}` : '';
+  const res = await fetch(`/api/content/subjects${qs}`);
   if (!res.ok) throw new Error('Impossible de charger les matières.');
   return res.json();
 }
@@ -65,8 +66,16 @@ export async function fetchChapters(subjectId: string): Promise<ChapterRow[]> {
   return res.json();
 }
 
-export function createChapter(input: { subjectId: string; termId: string; title: string }) {
+export function createChapter(input: { subjectId: string; termId: string; title: string; introduction?: string }) {
   return request('/api/content/chapters', jsonInit('POST', input));
+}
+
+export function updateChapter(input: { id: string; title: string; introduction?: string; termId: string }) {
+  return request(`/api/content/chapters/${input.id}`, jsonInit('PATCH', input));
+}
+
+export function moveChapter(input: { id: string; direction: 'up' | 'down'; subjectId: string }) {
+  return request(`/api/content/chapters/${input.id}/move`, jsonInit('POST', input));
 }
 
 export async function fetchTerms(countryId?: string): Promise<TermRow[]> {
@@ -119,12 +128,17 @@ export function setCatalogEntryActive(input: { id: string; isActive: boolean }) 
   return request(`/api/content/catalog/${input.id}`, jsonInit('PATCH', { isActive: input.isActive }));
 }
 
-export function deleteCatalogEntry(input: { id: string }) {
-  return request(`/api/content/catalog/${input.id}`, { method: 'DELETE' });
+export function deleteCatalogEntry(input: { id: string; cascade?: boolean }) {
+  const qs = input.cascade ? '?cascade=true' : '';
+  return request(`/api/content/catalog/${input.id}${qs}`, { method: 'DELETE' });
 }
 
 export function loadCatalogTemplate(input: { subjectId: string; templateKey: string }) {
   return request('/api/content/catalog/load-template', jsonInit('POST', input));
+}
+
+export function duplicateCatalogToSubject(input: { sourceSubjectId: string; targetSubjectId: string }) {
+  return request('/api/content/catalog/duplicate', jsonInit('POST', input));
 }
 
 export async function fetchLessons(chapterId: string): Promise<LessonWithStatus[]> {
@@ -133,16 +147,23 @@ export async function fetchLessons(chapterId: string): Promise<LessonWithStatus[
   return res.json();
 }
 
-export function createLesson(input: { chapterId: string; title: string; bodyText: string }) {
+export function createLesson(input: { chapterId: string; title: string; contentJson: Record<string, unknown>; catalogId: string | null }) {
   return request('/api/content/lessons', jsonInit('POST', input));
+}
+
+export function updateLesson(input: { id: string; title: string; contentJson: Record<string, unknown>; catalogId: string | null }) {
+  return request(`/api/content/lessons/${input.id}`, jsonInit('PATCH', input));
 }
 
 export function submitForValidation(input: { lessonId: string }) {
   return request(`/api/content/lessons/${input.lessonId}/submit`, { method: 'POST' });
 }
 
-export async function fetchValidationQueue(status?: string): Promise<ValidationQueueItem[]> {
-  const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+export async function fetchValidationQueue(status?: string, countryId?: string): Promise<ValidationQueueItem[]> {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (countryId) params.set('countryId', countryId);
+  const qs = params.toString() ? `?${params.toString()}` : '';
   const res = await fetch(`/api/content/validation-queue${qs}`);
   if (!res.ok) throw new Error('Impossible de charger la file de validation.');
   return res.json();

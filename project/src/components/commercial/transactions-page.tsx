@@ -1,241 +1,217 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { motion, type Variants } from 'framer-motion';
 import { PageHeader } from '@/components/layout/page-header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
-import { DollarSign, Search, Eye, Download, Calendar } from 'lucide-react';
+import {
+  DollarSign, Search, Download, Calendar, ChevronRight, AlertCircle,
+} from 'lucide-react';
 import { MOCK_TRANSACTIONS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon?: React.ReactNode }> = {
-  completed: { label: 'Complete', color: 'bg-emerald-100 text-emerald-700' },
-  pending: { label: 'En attente', color: 'bg-amber-100 text-amber-700' },
-  failed: { label: 'Echouee', color: 'bg-red-100 text-red-700' },
-  refunded: { label: 'Remboursee', color: 'bg-slate-100 text-slate-700' },
+const stagger: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.035, delayChildren: 0.04 } },
+};
+const rowItem: Variants = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.26, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } },
 };
 
-export default function TransactionsPage() {
-  const [selectedTx, setSelectedTx] = useState<typeof MOCK_TRANSACTIONS[0] | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string | null>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+const STATUS_CFG = {
+  completed: { label: 'Complète', dot: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' },
+  pending: { label: 'En attente', dot: 'bg-amber-500', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
+  failed: { label: 'Échouée', dot: 'bg-rose-500', badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' },
+  refunded: { label: 'Remboursée', dot: 'bg-slate-400', badge: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
+} as const;
 
-  const filteredTx = MOCK_TRANSACTIONS.filter(tx => {
+const TYPE_BADGE: Record<string, string> = {
+  subscription: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  purchase: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
+  donation: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
+};
+
+const STATUS_FILTER_ITEMS: Record<string, string> = {
+  all: 'Tous',
+  completed: 'Complètes',
+  pending: 'En attente',
+  failed: 'Échouées',
+  refunded: 'Remboursées',
+};
+const TYPE_LABEL: Record<string, string> = { subscription: 'Abonnement', purchase: 'Achat', donation: 'Don' };
+
+type Tx = typeof MOCK_TRANSACTIONS[number];
+
+export default function TransactionsPage() {
+  const [selectedTx, setSelectedTx] = useState<Tx | null>(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [search, setSearch] = useState('');
+
+  const filtered = MOCK_TRANSACTIONS.filter((tx) => {
     if (statusFilter !== 'all' && tx.status !== statusFilter) return false;
-    if (searchQuery && !tx.userName.toLowerCase().includes(searchQuery.toLowerCase()) && !tx.id.includes(searchQuery)) return false;
+    if (search && !tx.userName.toLowerCase().includes(search.toLowerCase()) && !tx.id.includes(search)) return false;
     return true;
   });
+
+  const stats = {
+    revenue: '42.1M FCFA',
+    total: MOCK_TRANSACTIONS.length,
+    pending: MOCK_TRANSACTIONS.filter((t) => t.status === 'pending').length,
+    failed: MOCK_TRANSACTIONS.filter((t) => t.status === 'failed').length,
+  };
 
   return (
     <>
       <div className="space-y-6">
         <PageHeader
           title="Transactions"
-          description="Liste de toutes les transactions financieres"
-          breadcrumbs={[
-            { label: 'Commercial' },
-            { label: 'Transactions' },
-          ]}
-          actions={
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Exporter
-            </Button>
-          }
+          description="Historique de toutes les transactions financières"
+          breadcrumbs={[{ label: 'Commercial' }, { label: 'Transactions' }]}
+          actions={<Button variant="outline" size="sm" className="gap-2"><Download className="h-4 w-4" />Exporter</Button>}
         />
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Revenus (mois)</p>
-                  <p className="text-2xl font-bold">42.1M FCFA</p>
-                </div>
-                <DollarSign className="h-8 w-8 text-emerald-500/50" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Transactions</p>
-                  <p className="text-2xl font-bold">{MOCK_TRANSACTIONS.length}</p>
-                </div>
-                <DollarSign className="h-8 w-8 text-primary/50" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">En attente</p>
-                  <p className="text-2xl font-bold text-amber-600">{MOCK_TRANSACTIONS.filter(t => t.status === 'pending').length}</p>
-                </div>
-                <Calendar className="h-8 w-8 text-amber-500/50" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Echouees</p>
-                  <p className="text-2xl font-bold text-red-600">{MOCK_TRANSACTIONS.filter(t => t.status === 'failed').length}</p>
-                </div>
-                <DollarSign className="h-8 w-8 text-red-500/50" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-4">
-              <CardTitle>Liste des transactions</CardTitle>
-              <div className="flex items-center gap-2">
-                <div className="relative w-[250px]">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Utilisateur, ID..."
-                    className="pl-8"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[130px]">
-                    <SelectValue placeholder="Statut" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous</SelectItem>
-                    <SelectItem value="completed">Completes</SelectItem>
-                    <SelectItem value="pending">En attente</SelectItem>
-                    <SelectItem value="failed">Echouees</SelectItem>
-                  </SelectContent>
-                </Select>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            { label: 'Revenus (mois)', value: stats.revenue, icon: <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />, color: 'bg-emerald-500/10' },
+            { label: 'Transactions', value: stats.total, icon: <DollarSign className="h-5 w-5 text-primary/80" />, color: 'bg-primary/10' },
+            { label: 'En attente', value: stats.pending, icon: <Calendar className="h-5 w-5 text-amber-600 dark:text-amber-400" />, color: 'bg-amber-500/10' },
+            { label: 'Échouées', value: stats.failed, icon: <AlertCircle className="h-5 w-5 text-rose-600 dark:text-rose-400" />, color: 'bg-rose-500/10' },
+          ].map((s) => (
+            <div key={s.label} className="flex items-center gap-3 rounded-2xl border border-border/40 bg-card px-5 py-4 shadow-sm">
+              <div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', s.color)}>{s.icon}</div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">{s.label}</p>
+                <p className="text-xl font-bold tabular-nums">{typeof s.value === 'number' ? s.value.toLocaleString('fr-FR') : s.value}</p>
               </div>
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Utilisateur</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Montant</TableHead>
-                  <TableHead>Provider</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredTx.map((tx) => (
-                  <TableRow key={tx.id}>
-                    <TableCell className="font-mono text-xs">{tx.id}</TableCell>
-                    <TableCell>{tx.userName}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={
-                        tx.type === 'subscription' ? 'bg-blue-50 text-blue-700' :
-                        tx.type === 'purchase' ? 'bg-violet-50 text-violet-700' :
-                        'bg-pink-50 text-pink-700'
-                      }>
-                        {tx.type === 'subscription' ? 'Abonnement' : tx.type === 'purchase' ? 'Achat' : 'Don'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">{tx.amount.toLocaleString()} {tx.currency}</TableCell>
-                    <TableCell>{tx.provider}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={STATUS_CONFIG[tx.status as keyof typeof STATUS_CONFIG].color}>
-                        {STATUS_CONFIG[tx.status as keyof typeof STATUS_CONFIG].label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{new Date(tx.createdAt).toLocaleDateString('fr-FR')}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => setSelectedTx(tx)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+          ))}
+        </div>
 
-        <Dialog open={!!selectedTx} onOpenChange={() => setSelectedTx(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Details de la transaction</DialogTitle>
-              <DialogDescription>Reference: {selectedTx?.id}</DialogDescription>
-            </DialogHeader>
-            {selectedTx && (
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Utilisateur</span>
-                  <span>{selectedTx.userName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Type</span>
-                  <span>{selectedTx.type}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Montant</span>
-                  <span className="font-semibold">{selectedTx.amount.toLocaleString()} {selectedTx.currency}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Provider</span>
-                  <span>{selectedTx.provider}</span>
-                </div>
-                {selectedTx.providerRef && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Ref. provider</span>
-                    <span className="font-mono text-xs">{selectedTx.providerRef}</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+            <Input className="pl-9" placeholder="Utilisateur, ID…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          <Select items={STATUS_FILTER_ITEMS} value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Statut" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous</SelectItem>
+              <SelectItem value="completed">Complètes</SelectItem>
+              <SelectItem value="pending">En attente</SelectItem>
+              <SelectItem value="failed">Échouées</SelectItem>
+              <SelectItem value="refunded">Remboursées</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-muted-foreground">{filtered.length} résultat(s)</span>
+        </div>
+
+        <motion.div className="space-y-2" variants={stagger} initial="hidden" animate="show">
+          {filtered.map((tx) => {
+            const sc = STATUS_CFG[tx.status as keyof typeof STATUS_CFG] ?? STATUS_CFG.completed;
+            return (
+              <motion.button
+                key={tx.id}
+                variants={rowItem}
+                onClick={() => setSelectedTx(tx)}
+                className="group w-full rounded-2xl border border-border/40 bg-card px-5 py-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-lg"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/8">
+                    <DollarSign className="h-5 w-5 text-primary/70" />
                   </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Statut</span>
-                  <Badge variant="outline" className={STATUS_CONFIG[selectedTx.status as keyof typeof STATUS_CONFIG].color}>
-                    {STATUS_CONFIG[selectedTx.status as keyof typeof STATUS_CONFIG].label}
-                  </Badge>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-foreground transition-colors group-hover:text-primary">{tx.userName}</p>
+                      <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', TYPE_BADGE[tx.type] ?? 'bg-muted text-muted-foreground')}>
+                        {TYPE_LABEL[tx.type] ?? tx.type}
+                      </span>
+                      <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', sc.badge)}>
+                        {sc.label}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {tx.provider}
+                      {tx.providerRef && (
+                        <>
+                          <span className="mx-1.5 opacity-30">·</span>
+                          <span className="font-mono">{tx.providerRef}</span>
+                        </>
+                      )}
+                      <span className="mx-1.5 opacity-30">·</span>
+                      {new Date(tx.createdAt).toLocaleDateString('fr-FR')}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="font-bold tabular-nums text-foreground">{tx.amount.toLocaleString('fr-FR')}</p>
+                    <p className="text-xs text-muted-foreground">{tx.currency}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/30 group-hover:text-primary/50" />
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Date</span>
-                  <span>{new Date(selectedTx.createdAt).toLocaleString('fr-FR')}</span>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+              </motion.button>
+            );
+          })}
+          {filtered.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground/50">
+              <Search className="mb-3 h-10 w-10" />
+              <p className="text-sm font-medium">Aucune transaction trouvée</p>
+            </div>
+          )}
+        </motion.div>
       </div>
+
+      <Dialog open={!!selectedTx} onOpenChange={() => setSelectedTx(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Détail de la transaction</DialogTitle>
+            <DialogDescription>
+              {selectedTx?.providerRef ? (
+                <>Référence : <span className="font-mono">{selectedTx.providerRef}</span></>
+              ) : (
+                <>{selectedTx?.userName} · {selectedTx?.provider}</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedTx && (() => {
+            const sc = STATUS_CFG[selectedTx.status as keyof typeof STATUS_CFG] ?? STATUS_CFG.completed;
+            return (
+              <dl className="space-y-3 text-sm">
+                {[
+                  { label: 'Utilisateur', value: selectedTx.userName },
+                  { label: 'Type', value: TYPE_LABEL[selectedTx.type] ?? selectedTx.type },
+                  { label: 'Montant', value: `${selectedTx.amount.toLocaleString('fr-FR')} ${selectedTx.currency}`, bold: true },
+                  { label: 'Provider', value: selectedTx.provider },
+                  ...(selectedTx.providerRef ? [{ label: 'Réf. provider', value: selectedTx.providerRef, mono: true }] : []),
+                  { label: 'Date', value: new Date(selectedTx.createdAt).toLocaleString('fr-FR') },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center justify-between gap-4 border-b border-border/20 pb-3 last:border-0 last:pb-0">
+                    <dt className="text-muted-foreground">{item.label}</dt>
+                    <dd className={cn('text-right', (item as { bold?: boolean }).bold && 'font-bold', (item as { mono?: boolean }).mono && 'font-mono text-xs')}>
+                      {item.value}
+                    </dd>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between">
+                  <dt className="text-muted-foreground">Statut</dt>
+                  <dd>
+                    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold', sc.badge)}>
+                      <span className={cn('h-1.5 w-1.5 rounded-full', sc.dot)} />
+                      {sc.label}
+                    </span>
+                  </dd>
+                </div>
+              </dl>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

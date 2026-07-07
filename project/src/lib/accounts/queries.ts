@@ -72,17 +72,38 @@ function enrichProfiles(
   }));
 }
 
-export async function listAccounts(): Promise<AccountListItem[]> {
+/**
+ * @param countryId Filtre optionnel : ne retourne que les comptes ayant au moins un
+ * profil (élève) rattaché à ce pays (via `profiles.class_node_id`), et n'enrichit
+ * qu'avec les profils de ce pays — un compte avec des profils dans plusieurs pays
+ * n'expose pas ses profils hors périmètre à un admin scopé à un seul pays.
+ * Omis ou `undefined`, comportement inchangé (tous les comptes, tous les profils).
+ */
+export async function listAccounts(countryId?: string): Promise<AccountListItem[]> {
   const supabase = await createClient();
+
+  let profilesQuery = supabase
+    .from('profiles')
+    .select('id, account_id, class_node_id, status, subscription_tier, school_year');
+
+  let allowedClassNodeIds: Set<string> | null = null;
+  if (countryId) {
+    const { data: nodeData, error: nodeError } = await supabase
+      .from('academic_nodes')
+      .select('id')
+      .or(`id.eq.${countryId},country_id.eq.${countryId}`);
+    if (nodeError) throw new Error(nodeError.message);
+    const nodeIds = (nodeData ?? []).map((n) => n.id);
+    allowedClassNodeIds = new Set(nodeIds);
+    profilesQuery = nodeIds.length > 0 ? profilesQuery.in('class_node_id', nodeIds) : profilesQuery.eq('class_node_id', '00000000-0000-0000-0000-000000000000');
+  }
 
   const [{ data: accounts, error: accountsError }, { data: profiles, error: profilesError }] = await Promise.all([
     supabase
       .from('accounts')
       .select('id, email, first_name, last_name, phone, status, created_at')
       .order('created_at', { ascending: false }),
-    supabase
-      .from('profiles')
-      .select('id, account_id, class_node_id, status, subscription_tier, school_year'),
+    profilesQuery,
   ]);
   if (accountsError) throw new Error(accountsError.message);
   if (profilesError) throw new Error(profilesError.message);
@@ -97,7 +118,9 @@ export async function listAccounts(): Promise<AccountListItem[]> {
     profilesByAccount.set(p.account_id, [...(profilesByAccount.get(p.account_id) ?? []), p]);
   });
 
-  return (accounts ?? []).map((account) => ({
+  const accountsInScope = allowedClassNodeIds ? (accounts ?? []).filter((a) => profilesByAccount.has(a.id)) : (accounts ?? []);
+
+  return accountsInScope.map((account) => ({
     ...account,
     profiles: enrichProfiles(profilesByAccount.get(account.id) ?? [], classNames),
   }));

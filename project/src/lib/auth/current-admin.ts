@@ -8,6 +8,11 @@ export interface CurrentAdmin {
   id: string;
   email: string;
   role: UserRole;
+  /**
+   * Pays assigné (rôles à `countryScope: 'assigned'`, ex. admin_pays), lu depuis
+   * `admin_users.scope_json.countryId`. `null` si non renseigné ou non applicable.
+   */
+  assignedCountryId: string | null;
 }
 
 /**
@@ -25,13 +30,20 @@ export const getCurrentAdmin = cache(async (): Promise<CurrentAdmin | null> => {
 
   const { data: adminUser } = await supabase
     .from('admin_users')
-    .select('id, email, role')
+    .select('id, email, role, scope_json')
     .eq('id', user.id)
     .maybeSingle();
 
   if (!adminUser) return null;
 
-  return adminUser as CurrentAdmin;
+  const scopeJson = adminUser.scope_json as { countryId?: string } | null;
+
+  return {
+    id: adminUser.id,
+    email: adminUser.email,
+    role: adminUser.role,
+    assignedCountryId: scopeJson?.countryId ?? null,
+  };
 });
 
 /** À utiliser dans chaque layout/page qui exige une session admin valide. */

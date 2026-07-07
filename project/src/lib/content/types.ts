@@ -60,12 +60,21 @@ export interface CatalogEntryRow {
   created_at: string | null;
 }
 
+/**
+ * Document Tiptap (éditeur riche, section 2.3). Les leçons créées avant l'éditeur riche
+ * ont un `content_json` legacy `{ text?: string }` — voir `toEditorDoc()` dans
+ * `src/components/editor/rich-lesson-editor.tsx` pour la conversion à l'affichage.
+ */
+export type LessonContent = Record<string, unknown>;
+
 export interface LessonRow {
   id: string;
   chapter_id: string;
   title: string;
-  content_json: { text?: string } | null;
+  content_json: LessonContent | null;
   display_order: number | null;
+  /** Type pédagogique applicable (section 16.0) — ex. Définition, Théorème, Méthode. Optionnel. */
+  catalog_id: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -74,7 +83,7 @@ export interface ContentVersionRow {
   id: string;
   content_id: string;
   version_number: number;
-  content_json: { text?: string };
+  content_json: LessonContent;
   status: ContentStatus;
   created_at: string | null;
 }

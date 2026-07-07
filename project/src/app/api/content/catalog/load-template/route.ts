@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   const elementTypes = CATALOG_TEMPLATES[body.templateKey];
   if (!elementTypes) return NextResponse.json({ error: 'Modèle inconnu.' }, { status: 400 });
 
-  const result = await loadCatalogTemplate({ subjectId: body.subjectId, elementTypes });
+  const result = await loadCatalogTemplate({ subjectId: body.subjectId, elementTypes, adminId: guard.admin.id });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

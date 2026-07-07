@@ -20,6 +20,8 @@ import type {
   Transaction,
   ReconciliationItem,
   RefundRequest,
+  Donation,
+  Referral,
   AIAgent,
   AIProcessingRecord,
   AuditLogEntry,
@@ -648,15 +650,19 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
 
 // Reconciliation items (for super_admin)
 export const MOCK_RECONCILIATION: ReconciliationItem[] = [
-  { id: 'rec1', providerRef: 'OM20241209001', dbAmount: 5000, providerAmount: 5000, userId: 'stud005', status: 'pending', createdAt: '2024-12-09T16:00:00' },
-  { id: 'rec2', providerRef: 'MTN20241209002', dbAmount: 10000, providerAmount: 10000, userId: 'stud006', status: 'matched', createdAt: '2024-12-09T12:00:00' },
-  { id: 'rec3', providerRef: 'OM20241208003', dbAmount: 3000, providerAmount: 3500, userId: 'stud007', status: 'discrepancy', createdAt: '2024-12-08T10:00:00' },
+  { id: 'rec1', providerRef: 'OM20241209001', dbAmount: 5000, providerAmount: 5000, userId: 'stud005', userName: 'Ateba Solange', operator: 'Orange Money', status: 'pending', createdAt: '2024-12-09T16:00:00' },
+  { id: 'rec2', providerRef: 'MTN20241209002', dbAmount: 10000, providerAmount: 10000, userId: 'stud006', userName: 'Biya Roland', operator: 'MTN Mobile Money', status: 'matched', createdAt: '2024-12-09T12:00:00' },
+  { id: 'rec3', providerRef: 'OM20241208003', dbAmount: 3000, providerAmount: 3500, userId: 'stud007', userName: 'Essomba Ruth', operator: 'Orange Money', status: 'discrepancy', createdAt: '2024-12-08T10:00:00' },
+  { id: 'rec4', providerRef: 'MTN20241207004', dbAmount: 7500, providerAmount: 0, userId: 'stud008', userName: 'Owona Cédric', operator: 'MTN Mobile Money', status: 'discrepancy', createdAt: '2024-12-07T09:15:00' },
+  { id: 'rec5', providerRef: 'OM20241206005', dbAmount: 2000, providerAmount: 2000, userId: 'stud009', userName: 'Zang Aurélie', operator: 'Orange Money', status: 'resolved', createdAt: '2024-12-06T08:30:00' },
 ];
 
 // Refund requests (for super_admin)
 export const MOCK_REFUNDS: RefundRequest[] = [
-  { id: 'ref1', transactionId: 'tr1', userId: 'stud001', userName: 'Kouam Arnaud', amount: 5000, reason: 'J\'ai été facturé deux fois pour le même abonnement.', status: 'pending', deadline: '2024-12-25', createdAt: '2024-12-10T11:00:00' },
-  { id: 'ref2', transactionId: 'tr2', userId: 'stud002', userName: 'Ngono Béatrice', amount: 2000, reason: 'Le document acheté ne correspond pas à la description.', status: 'approved', deadline: '2024-12-20', createdAt: '2024-12-08T09:00:00' },
+  { id: 'ref1', transactionId: 'tr1', userId: 'stud001', userName: 'Kouam Arnaud', email: 'arnaud.kouam@email.com', amount: 5000, reason: 'J\'ai été facturé deux fois pour le même abonnement.', subscriptionType: 'Mensuel', priority: 'high', status: 'pending', deadline: '2024-12-25', createdAt: '2024-12-10T11:00:00' },
+  { id: 'ref2', transactionId: 'tr2', userId: 'stud002', userName: 'Ngono Béatrice', email: 'beatrice.ngono@email.com', amount: 2000, reason: 'Le document acheté ne correspond pas à la description.', subscriptionType: 'Boutique', priority: 'low', status: 'approved', deadline: '2024-12-20', createdAt: '2024-12-08T09:00:00' },
+  { id: 'ref3', transactionId: 'tr3', userId: 'stud003', userName: 'Mvondo Christian', email: 'christian.mvondo@email.com', amount: 1000, reason: 'Don initié par erreur, montant non souhaité.', subscriptionType: 'Don', priority: 'medium', status: 'pending', deadline: '2024-12-22', createdAt: '2024-12-09T18:30:00' },
+  { id: 'ref4', transactionId: 'tr4', userId: 'stud004', userName: 'Tchoua Marie', email: 'marie.tchoua@email.com', amount: 5000, reason: 'Paiement échoué mais montant débité par l\'opérateur.', subscriptionType: 'Annuel', priority: 'high', status: 'rejected', deadline: '2024-12-18', createdAt: '2024-12-08T15:00:00' },
 ];
 
 // AI Agents
@@ -677,10 +683,10 @@ export const MOCK_AI_RECORDS: AIProcessingRecord[] = [
 
 // Audit log entries
 export const MOCK_AUDIT_LOG: AuditLogEntry[] = [
-  { id: 'al1', userId: 'u1', userName: 'Marie Nguema', userRole: 'super_admin', action: 'CREATE', entityType: 'user', entityId: 'u9', newValue: '{"email":"new@piq.com","role":"enseignant"}', createdAt: '2024-12-10T10:00:00' },
-  { id: 'al2', userId: 'u2', userName: 'Paul Mbeki', userRole: 'admin_pays', action: 'UPDATE', entityType: 'lesson', entityId: 'l5', oldValue: '{"status":"draft"}', newValue: '{"status":"published"}', createdAt: '2024-12-10T09:30:00' },
-  { id: 'al3', userId: 'u3', userName: 'Sophie Atangana', userRole: 'admin_contenu', action: 'DELETE', entityType: 'exercise', entityId: 'ex12', oldValue: '{"title":"Exercice obsolète"}', createdAt: '2024-12-09T16:00:00' },
-  { id: 'al4', userId: 'u5', userName: 'Claire Fouda', userRole: 'moderateur', action: 'UPDATE', entityType: 'forum_message', entityId: 'msg005', oldValue: '{"visible":true}', newValue: '{"visible":false,"reason":"propos inappropriés"}', createdAt: '2024-12-09T14:00:00' },
+  { id: 'al1', userId: 'u1', userName: 'Marie Nguema', userRole: 'super_admin', action: 'CREATE', entityType: 'user', entityId: 'u9', entityLabel: 'new@piq.com', newValue: '{"email":"new@piq.com","role":"enseignant"}', createdAt: '2024-12-10T10:00:00' },
+  { id: 'al2', userId: 'u2', userName: 'Paul Mbeki', userRole: 'admin_pays', action: 'UPDATE', entityType: 'lesson', entityId: 'l5', entityLabel: 'Les fonctions dérivées', oldValue: '{"status":"draft"}', newValue: '{"status":"published"}', createdAt: '2024-12-10T09:30:00' },
+  { id: 'al3', userId: 'u3', userName: 'Sophie Atangana', userRole: 'admin_contenu', action: 'DELETE', entityType: 'exercise', entityId: 'ex12', entityLabel: 'Exercice obsolète', oldValue: '{"title":"Exercice obsolète"}', createdAt: '2024-12-09T16:00:00' },
+  { id: 'al4', userId: 'u5', userName: 'Claire Fouda', userRole: 'moderateur', action: 'UPDATE', entityType: 'forum_message', entityId: 'msg005', entityLabel: 'Message de Junior K.', oldValue: '{"visible":true}', newValue: '{"visible":false,"reason":"propos inappropriés"}', createdAt: '2024-12-09T14:00:00' },
 ];
 
 // Dashboard stats
@@ -754,14 +760,16 @@ export const MOCK_TEACHERS = [
 ];
 
 // Donations
-export const MOCK_DONATIONS = [
-  { id: 'd1', donorName: 'Martin Nkodo', email: 'martin@email.com', amount: 5000, currency: 'XAF', cause: 'Bourses élèves défavorisés', status: 'completed', createdAt: '2024-12-08' },
-  { id: 'd2', donorName: 'Sylvie Atangana', email: 'sylvie@email.com', amount: 10000, currency: 'XAF', cause: 'Développement contenu', status: 'completed', createdAt: '2024-12-05' },
-  { id: 'd3', donorName: 'Jean-Pierre Fouda', email: 'jp@email.com', amount: 25000, currency: 'XAF', cause: 'Bourses élèves défavorisés', status: 'pending', createdAt: '2024-12-10' },
+export const MOCK_DONATIONS: Donation[] = [
+  { id: 'd1', donorName: 'Martin Nkodo', email: 'martin@email.com', amount: 5000, currency: 'XAF', cause: 'Bourses élèves défavorisés', provider: 'Orange Money', receiptSent: true, status: 'completed', createdAt: '2024-12-08' },
+  { id: 'd2', donorName: 'Sylvie Atangana', email: 'sylvie@email.com', amount: 10000, currency: 'XAF', cause: 'Développement contenu', provider: 'MTN Mobile Money', receiptSent: false, status: 'completed', createdAt: '2024-12-05' },
+  { id: 'd3', donorName: 'Jean-Pierre Fouda', email: 'jp@email.com', amount: 25000, currency: 'XAF', cause: 'Bourses élèves défavorisés', provider: 'MTN Mobile Money', receiptSent: false, status: 'pending', createdAt: '2024-12-10' },
+  { id: 'd4', donorName: 'Grace Belinga', email: 'grace@email.com', amount: 15000, currency: 'XAF', cause: 'Développement contenu', provider: 'Orange Money', receiptSent: true, status: 'completed', createdAt: '2024-12-03' },
+  { id: 'd5', donorName: 'Serge Amougou', email: 'serge@email.com', amount: 3000, currency: 'XAF', cause: 'Bourses élèves défavorisés', provider: 'Express Union', receiptSent: false, status: 'failed', createdAt: '2024-12-02' },
 ];
 
 // Referrals
-export const MOCK_REFERRALS = [
+export const MOCK_REFERRALS: Referral[] = [
   { id: 'ref1', referrerId: 'u1', referrerName: 'Kouam Arnaud', referredId: 'u9', referredName: 'Mvondo Pierre', status: 'completed', reward: '500 FCFA', createdAt: '2024-12-01' },
   { id: 'ref2', referrerId: 'u2', referrerName: 'Ngono Béatrice', referredId: 'u10', referredName: 'Tchoua Paul', status: 'pending', reward: '500 FCFA', createdAt: '2024-12-08' },
 ];

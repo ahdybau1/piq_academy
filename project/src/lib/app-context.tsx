@@ -1,8 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useCallback, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { setSelectedCountryCookie } from '@/lib/country-scope-actions';
+import { ROLE_CONFIGS } from '@/lib/roles-config';
 import type { UserRole } from './types';
 import type { CurrentAdmin } from './auth/current-admin';
 
@@ -22,7 +24,10 @@ interface AppContextType {
   currentUser: DisplayUser;
   selectedCountry: AcademicCountry | null;
   availableCountries: AcademicCountry[];
+  /** true si le rôle courant n'a pas le choix (pays assigné) — le picker doit être en lecture seule. */
+  isCountryLocked: boolean;
   switchCountry: (countryId: string | null) => void;
+  isSwitchingCountry: boolean;
   logout: () => void;
 }
 
@@ -32,19 +37,29 @@ export function AuthProvider({
   children,
   currentUser,
   availableCountries,
+  selectedCountryId,
 }: {
   children: React.ReactNode;
   currentUser: CurrentAdmin;
   availableCountries: AcademicCountry[];
+  /** Résolu côté serveur (cookie pour super_admin, pays assigné pour admin_pays, null sinon). */
+  selectedCountryId: string | null;
 }) {
   const router = useRouter();
-  const [selectedCountryId, setSelectedCountryId] = useState<string | null>(
-    availableCountries[0]?.id ?? null
-  );
+  const [isSwitchingCountry, startCountryTransition] = useTransition();
 
-  const switchCountry = useCallback((countryId: string | null) => {
-    setSelectedCountryId(countryId);
-  }, []);
+  // Le pays sélectionné est piloté par le serveur (cookie via server action, ou
+  // assignation pays pour admin_pays) : pas d'état local dupliqué — la seule source
+  // de vérité est le cookie + `resolveEffectiveCountryId`, relu à chaque `router.refresh()`.
+  const switchCountry = useCallback(
+    (countryId: string | null) => {
+      startCountryTransition(async () => {
+        await setSelectedCountryCookie(countryId);
+        router.refresh();
+      });
+    },
+    [router]
+  );
 
   const logout = useCallback(() => {
     const supabase = createClient();
@@ -64,6 +79,7 @@ export function AuthProvider({
     [currentUser]
   );
 
+  const isCountryLocked = ROLE_CONFIGS[currentUser.role].countryScope === 'assigned';
   const selectedCountry = availableCountries.find((c) => c.id === selectedCountryId) ?? null;
 
   return (
@@ -72,7 +88,9 @@ export function AuthProvider({
         currentUser: displayUser,
         selectedCountry,
         availableCountries,
+        isCountryLocked,
         switchCountry,
+        isSwitchingCountry,
         logout,
       }}
     >

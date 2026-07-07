@@ -13,17 +13,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'isActive est requis.' }, { status: 400 });
   }
 
-  const result = await setCatalogEntryActive({ id, isActive: body.isActive });
+  const result = await setCatalogEntryActive({ id, isActive: body.isActive, adminId: guard.admin.id });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json({ ok: true });
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireApiRole(CATALOG_ADMIN_ROLES);
   if ('response' in guard) return guard.response;
 
   const { id } = await params;
-  const result = await deleteCatalogEntry({ id, adminId: guard.admin.id });
+  const cascade = new URL(request.url).searchParams.get('cascade') === 'true';
+  const result = await deleteCatalogEntry({ id, cascade, adminId: guard.admin.id });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

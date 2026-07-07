@@ -1,19 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
+import { motion, type Variants } from 'framer-motion';
 import { PageHeader } from '@/components/layout/page-header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -25,16 +17,12 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
-  Accessibility,
   Eye,
   Ear,
   Type,
@@ -53,11 +41,35 @@ import { MOCK_ACCESSIBILITY_CHECKS, MOCK_ACCESSIBILITY_STATS } from '@/lib/mock-
 import { cn } from '@/lib/utils';
 import type { AccessibilityCheck } from '@/lib/types';
 
+const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.04 } } };
+const fadeUp: Variants = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } } };
+
 const CONTENT_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
-  lesson: { label: 'Cours', color: 'bg-blue-100 text-blue-700' },
-  exercise: { label: 'Exercice', color: 'bg-emerald-100 text-emerald-700' },
-  exam: { label: 'Examen', color: 'bg-purple-100 text-purple-700' },
+  lesson: { label: 'Cours', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  exercise: { label: 'Exercice', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+  exam: { label: 'Examen', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
 };
+
+const VISUAL_CRITERIA = [
+  { icon: <Type className="h-4 w-4" />, label: 'Alternatives textuelles', ok: true },
+  { icon: <Monitor className="h-4 w-4" />, label: 'Contraste suffisant', ok: true },
+  { icon: <Type className="h-4 w-4" />, label: 'Taille de police ajustable', ok: true },
+  { icon: <EyeOff className="h-4 w-4" />, label: 'Mode contraste élevé', ok: true },
+];
+
+const AUDIO_CRITERIA = [
+  { icon: <Captions className="h-4 w-4" />, label: 'Sous-titres vidéos', ok: false },
+  { icon: <Volume2 className="h-4 w-4" />, label: 'Transcriptions audio', ok: true },
+  { icon: <Ear className="h-4 w-4" />, label: 'Descriptions audio', ok: false },
+  { icon: <FileText className="h-4 w-4" />, label: 'Lecteur d\'écran compatible', ok: true },
+];
+
+const FEATURE_SETTINGS = [
+  { label: 'Mode dyslexie', desc: 'Police adaptée et espacement renforcé' },
+  { label: 'Navigation au clavier uniquement', desc: 'Toutes les actions accessibles via clavier' },
+  { label: 'Réduction des animations', desc: 'Désactive les animations et transitions' },
+  { label: 'Mode daltonisme', desc: 'Palettes de couleurs adaptées' },
+];
 
 export default function AccessibilityPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -73,7 +85,7 @@ export default function AccessibilityPage() {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="min-h-full space-y-8 pb-12">
         <PageHeader
           title="Configuration accessibilité"
           description="Vérification de conformité du contenu et statistiques d&apos;usage des fonctionnalités d&apos;accessibilité"
@@ -83,184 +95,100 @@ export default function AccessibilityPage() {
           ]}
         />
 
-        {/* Stats Overview */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Contenu total</p>
-                  <p className="text-2xl font-bold">{MOCK_ACCESSIBILITY_STATS.totalContent.toLocaleString()}</p>
+        {/* KPI Strip */}
+        <motion.div variants={stagger} initial="hidden" animate="show" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: 'Contenu total', value: MOCK_ACCESSIBILITY_STATS.totalContent.toLocaleString(), icon: <FileText className="h-5 w-5" />, bg: 'bg-slate-500/10', color: 'text-slate-600 dark:text-slate-400' },
+            { label: 'Conforme', value: MOCK_ACCESSIBILITY_STATS.compliantContent.toLocaleString(), sub: `${complianceRate.toFixed(1)}% du total`, icon: <CheckCircle className="h-5 w-5" />, bg: 'bg-emerald-500/10', color: 'text-emerald-500' },
+            { label: 'En attente', value: MOCK_ACCESSIBILITY_STATS.pendingChecks.toString(), icon: <AlertTriangle className="h-5 w-5" />, bg: 'bg-amber-500/10', color: 'text-amber-500' },
+            { label: 'Non conforme', value: (MOCK_ACCESSIBILITY_STATS.totalContent - MOCK_ACCESSIBILITY_STATS.compliantContent - MOCK_ACCESSIBILITY_STATS.pendingChecks).toString(), icon: <XCircle className="h-5 w-5" />, bg: 'bg-red-500/10', color: 'text-red-500' },
+          ].map((kpi) => (
+            <motion.div key={kpi.label} variants={fadeUp}
+              className="rounded-2xl border border-border/40 bg-card p-5 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60">{kpi.label}</p>
+                  <p className="mt-2 text-2xl font-bold">{kpi.value}</p>
+                  {kpi.sub && <p className="mt-0.5 text-xs text-muted-foreground">{kpi.sub}</p>}
                 </div>
-                <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center">
-                  <FileText className="h-5 w-5 text-slate-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Conforme</p>
-                  <p className="text-2xl font-bold text-emerald-600">{MOCK_ACCESSIBILITY_STATS.compliantContent.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">{complianceRate.toFixed(1)}% du total</p>
-                </div>
-                <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                  <CheckCircle className="h-5 w-5 text-emerald-600" />
+                <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ml-3', kpi.bg, kpi.color)}>
+                  {kpi.icon}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </motion.div>
+          ))}
+        </motion.div>
 
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">En attente de vérification</p>
-                  <p className="text-2xl font-bold text-amber-600">{MOCK_ACCESSIBILITY_STATS.pendingChecks}</p>
-                </div>
-                <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
-                  <AlertTriangle className="h-5 w-5 text-amber-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Non conforme</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    {MOCK_ACCESSIBILITY_STATS.totalContent - MOCK_ACCESSIBILITY_STATS.compliantContent - MOCK_ACCESSIBILITY_STATS.pendingChecks}
-                  </p>
-                </div>
-                <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
-                  <XCircle className="h-5 w-5 text-red-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="bg-muted/40">
             <TabsTrigger value="overview">Vue d&apos;ensemble</TabsTrigger>
             <TabsTrigger value="checks">Vérifications</TabsTrigger>
             <TabsTrigger value="usage">Usage élève</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-4 mt-4">
+          <TabsContent value="overview" className="space-y-4">
             {/* Global Progress */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Taux de conformité global</CardTitle>
-                <CardDescription>
-                  Pourcentage de contenu respectant les standards d&apos;accessibilité WCAG 2.1 AA
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <Progress value={complianceRate} className="h-4" />
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      {MOCK_ACCESSIBILITY_STATS.compliantContent.toLocaleString()} éléments conformes
-                    </span>
-                    <span className="font-medium">{complianceRate.toFixed(1)}%</span>
-                  </div>
+            <div className="rounded-2xl border border-border/40 bg-card p-6 shadow-sm">
+              <p className="font-semibold">Taux de conformité global</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Pourcentage de contenu respectant les standards d&apos;accessibilité WCAG 2.1 AA
+              </p>
+              <div className="mt-4 space-y-2">
+                <Progress value={complianceRate} className="h-4" />
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {MOCK_ACCESSIBILITY_STATS.compliantContent.toLocaleString()} éléments conformes
+                  </span>
+                  <span className="font-medium">{complianceRate.toFixed(1)}%</span>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Criteria Checklist */}
             <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Eye className="h-5 w-5 text-blue-600" />
-                    Critères visuels
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Type className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Alternatives textuelles</span>
+              <div className="rounded-2xl border border-border/40 bg-card p-6 shadow-sm">
+                <p className="flex items-center gap-2 font-semibold mb-4">
+                  <Eye className="h-5 w-5 text-blue-600" />
+                  Critères visuels
+                </p>
+                <div className="space-y-3">
+                  {VISUAL_CRITERIA.map((c) => (
+                    <div key={c.label} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        {c.icon}
+                        <span className="text-sm text-foreground">{c.label}</span>
                       </div>
-                      <CheckCircle className="h-4 w-4 text-emerald-600" />
+                      {c.ok ? <CheckCircle className="h-4 w-4 text-emerald-600" /> : <XCircle className="h-4 w-4 text-red-500" />}
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Monitor className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Contraste suffisant</span>
-                      </div>
-                      <CheckCircle className="h-4 w-4 text-emerald-600" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Type className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Taille de police ajustable</span>
-                      </div>
-                      <CheckCircle className="h-4 w-4 text-emerald-600" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <EyeOff className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Mode contraste élevé</span>
-                      </div>
-                      <CheckCircle className="h-4 w-4 text-emerald-600" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  ))}
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Ear className="h-5 w-5 text-amber-600" />
-                    Critères audio
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Captions className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Sous-titres vidéos</span>
+              <div className="rounded-2xl border border-border/40 bg-card p-6 shadow-sm">
+                <p className="flex items-center gap-2 font-semibold mb-4">
+                  <Ear className="h-5 w-5 text-amber-600" />
+                  Critères audio
+                </p>
+                <div className="space-y-3">
+                  {AUDIO_CRITERIA.map((c) => (
+                    <div key={c.label} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        {c.icon}
+                        <span className="text-sm text-foreground">{c.label}</span>
                       </div>
-                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      {c.ok
+                        ? <CheckCircle className="h-4 w-4 text-emerald-600" />
+                        : c.label.includes('Sous-titres')
+                          ? <AlertTriangle className="h-4 w-4 text-amber-600" />
+                          : <XCircle className="h-4 w-4 text-red-600" />}
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Volume2 className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Transcriptions audio</span>
-                      </div>
-                      <CheckCircle className="h-4 w-4 text-emerald-600" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Ear className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Descriptions audio</span>
-                      </div>
-                      <XCircle className="h-4 w-4 text-red-600" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Lecteur d&apos;écran compatible</span>
-                      </div>
-                      <CheckCircle className="h-4 w-4 text-emerald-600" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  ))}
+                </div>
+              </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="checks" className="space-y-4 mt-4">
+          <TabsContent value="checks" className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Résultats des vérifications</h3>
               <Button onClick={handleRunCheck} disabled={isChecking}>
@@ -277,219 +205,145 @@ export default function AccessibilityPage() {
                 )}
               </Button>
             </div>
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Contenu</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Sous-titres</TableHead>
-                      <TableHead>Alt text</TableHead>
-                      <TableHead>Transcription</TableHead>
-                      <TableHead>Score</TableHead>
-                      <TableHead>Problèmes</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {MOCK_ACCESSIBILITY_CHECKS.map((check) => (
-                      <TableRow key={check.id}>
-                        <TableCell>
-                          <button
-                            className="text-left hover:text-primary"
-                            onClick={() => setSelectedCheck(check)}
-                          >
-                            <p className="font-medium">{check.contentTitle}</p>
-                          </button>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={CONTENT_TYPE_CONFIG[check.contentType].color}>
-                            {CONTENT_TYPE_CONFIG[check.contentType].label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {check.hasSubtitles ? (
-                            <CheckCircle className="h-4 w-4 text-emerald-600" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-red-500" />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {check.hasAltText ? (
-                            <CheckCircle className="h-4 w-4 text-emerald-600" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-red-500" />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {check.hasTranscript ? (
-                            <CheckCircle className="h-4 w-4 text-emerald-600" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-red-500" />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 h-2 rounded-full bg-slate-200">
-                              <div
-                                className={cn(
-                                  'h-full rounded-full',
-                                  check.complianceScore >= 80 ? 'bg-emerald-500' :
-                                  check.complianceScore >= 50 ? 'bg-amber-500' : 'bg-red-500'
-                                )}
-                                style={{ width: `${check.complianceScore}%` }}
-                              />
-                            </div>
-                            <span className={cn(
-                              'font-medium text-sm',
-                              check.complianceScore >= 80 ? 'text-emerald-600' :
-                              check.complianceScore >= 50 ? 'text-amber-600' : 'text-red-600'
-                            )}>
-                              {check.complianceScore}%
-                            </span>
+            <div className="rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/40 bg-muted/30">
+                    <TableHead>Contenu</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Sous-titres</TableHead>
+                    <TableHead>Alt text</TableHead>
+                    <TableHead>Transcription</TableHead>
+                    <TableHead>Score</TableHead>
+                    <TableHead>Problèmes</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {MOCK_ACCESSIBILITY_CHECKS.map((check) => (
+                    <TableRow key={check.id} className="border-border/40 hover:bg-muted/30">
+                      <TableCell>
+                        <button
+                          className="text-left hover:text-primary"
+                          onClick={() => setSelectedCheck(check)}
+                        >
+                          <p className="font-medium">{check.contentTitle}</p>
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={cn('border-0', CONTENT_TYPE_CONFIG[check.contentType].color)}>
+                          {CONTENT_TYPE_CONFIG[check.contentType].label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {check.hasSubtitles ? (
+                          <CheckCircle className="h-4 w-4 text-emerald-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {check.hasAltText ? (
+                          <CheckCircle className="h-4 w-4 text-emerald-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {check.hasTranscript ? (
+                          <CheckCircle className="h-4 w-4 text-emerald-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 h-2 rounded-full bg-muted">
+                            <div
+                              className={cn(
+                                'h-full rounded-full',
+                                check.complianceScore >= 80 ? 'bg-emerald-500' :
+                                check.complianceScore >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                              )}
+                              style={{ width: `${check.complianceScore}%` }}
+                            />
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          {check.issues.length > 0 ? (
-                            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                              {check.issues.length} problème(s)
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm">
-                            Voir détails
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                          <span className={cn(
+                            'font-medium text-sm',
+                            check.complianceScore >= 80 ? 'text-emerald-600' :
+                            check.complianceScore >= 50 ? 'text-amber-600' : 'text-red-600'
+                          )}>
+                            {check.complianceScore}%
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {check.issues.length > 0 ? (
+                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50">
+                            {check.issues.length} problème(s)
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedCheck(check)}>
+                          Voir détails
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </TabsContent>
 
-          <TabsContent value="usage" className="space-y-4 mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Utilisation des fonctionnalités d&apos;accessibilité</CardTitle>
-                <CardDescription>
-                  Nombre d&apos;élèves utilisant chaque fonctionnalité
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
+          <TabsContent value="usage" className="space-y-4">
+            <div className="rounded-2xl border border-border/40 bg-card p-6 shadow-sm">
+              <p className="font-semibold">Utilisation des fonctionnalités d&apos;accessibilité</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Nombre d&apos;élèves utilisant chaque fonctionnalité</p>
+              <div className="mt-6 space-y-6">
+                {[
+                  { label: 'Lecteur d\'écran', desc: 'Compatible NVDA, JAWS, VoiceOver', icon: <Eye className="h-6 w-6" />, bg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400', value: MOCK_ACCESSIBILITY_STATS.featuresUsage.screenReader },
+                  { label: 'Contraste élevé', desc: 'Mode sombre / contraste renforcé', icon: <Monitor className="h-6 w-6" />, bg: 'bg-slate-500/10 text-slate-600 dark:text-slate-400', value: MOCK_ACCESSIBILITY_STATS.featuresUsage.highContrast },
+                  { label: 'Synthèse vocale', desc: 'Lecture à haute voix du contenu', icon: <Volume2 className="h-6 w-6" />, bg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', value: MOCK_ACCESSIBILITY_STATS.featuresUsage.textToSpeech },
+                  { label: 'Sous-titres', desc: 'Affichage des sous-titres sur vidéos', icon: <Captions className="h-6 w-6" />, bg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', value: MOCK_ACCESSIBILITY_STATS.featuresUsage.subtitles },
+                ].map((f) => (
+                  <div key={f.label} className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-lg bg-blue-100">
-                        <Eye className="h-6 w-6 text-blue-600" />
+                      <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', f.bg)}>
+                        {f.icon}
                       </div>
                       <div>
-                        <p className="font-medium">Lecteur d&apos;écran</p>
-                        <p className="text-sm text-muted-foreground">Compatible NVDA, JAWS, VoiceOver</p>
+                        <p className="font-medium">{f.label}</p>
+                        <p className="text-sm text-muted-foreground">{f.desc}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold">{MOCK_ACCESSIBILITY_STATS.featuresUsage.screenReader}</p>
+                      <p className="text-2xl font-bold">{f.value}</p>
                       <p className="text-sm text-muted-foreground">utilisateurs actifs</p>
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-lg bg-slate-100">
-                        <Monitor className="h-6 w-6 text-slate-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Contraste élevé</p>
-                        <p className="text-sm text-muted-foreground">Mode sombre / contraste renforcé</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold">{MOCK_ACCESSIBILITY_STATS.featuresUsage.highContrast}</p>
-                      <p className="text-sm text-muted-foreground">utilisateurs actifs</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-lg bg-emerald-100">
-                        <Volume2 className="h-6 w-6 text-emerald-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Synthèse vocale</p>
-                        <p className="text-sm text-muted-foreground">Lecture à haute voix du contenu</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold">{MOCK_ACCESSIBILITY_STATS.featuresUsage.textToSpeech}</p>
-                      <p className="text-sm text-muted-foreground">utilisateurs actifs</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-lg bg-amber-100">
-                        <Captions className="h-6 w-6 text-amber-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Sous-titres</p>
-                        <p className="text-sm text-muted-foreground">Affichage des sous-titres sur vidéos</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold">{MOCK_ACCESSIBILITY_STATS.featuresUsage.subtitles}</p>
-                      <p className="text-sm text-muted-foreground">utilisateurs actifs</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                ))}
+              </div>
+            </div>
 
             {/* Feature Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Configuration des fonctionnalités</CardTitle>
-                <CardDescription>
-                  Activation/désactivation des options d&apos;accessibilité côté élève
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="rounded-2xl border border-border/40 bg-card p-6 shadow-sm">
+              <p className="font-semibold">Configuration des fonctionnalités</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Activation/désactivation des options d&apos;accessibilité côté élève</p>
+              <div className="mt-4 space-y-3">
+                {FEATURE_SETTINGS.map((f) => (
+                  <div key={f.label} className="flex items-center justify-between rounded-xl border border-border/40 p-4">
                     <div>
-                      <p className="font-medium">Mode dyslexie</p>
-                      <p className="text-sm text-muted-foreground">Police adaptée et espacement renforcé</p>
+                      <p className="font-medium">{f.label}</p>
+                      <p className="text-sm text-muted-foreground">{f.desc}</p>
                     </div>
                     <Switch defaultChecked />
                   </div>
-                  <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div>
-                      <p className="font-medium">Navigation au clavier uniquement</p>
-                      <p className="text-sm text-muted-foreground">Toutes les actions accessibles via clavier</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div>
-                      <p className="font-medium">Réduction des animations</p>
-                      <p className="text-sm text-muted-foreground">Désactive les animations et transitions</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div>
-                      <p className="font-medium">Mode daltonisme</p>
-                      <p className="text-sm text-muted-foreground">Palettes de couleurs adaptées</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                ))}
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
@@ -502,15 +356,15 @@ export default function AccessibilityPage() {
           </DialogHeader>
           {selectedCheck && (
             <div className="space-y-4 py-4">
-              <div className="rounded-lg bg-slate-50 border p-4">
+              <div className="rounded-lg bg-muted/40 border border-border/40 p-4">
                 <p className="font-medium">{selectedCheck.contentTitle}</p>
                 <div className="flex items-center gap-2 mt-2">
-                  <Badge variant="outline" className={CONTENT_TYPE_CONFIG[selectedCheck.contentType].color}>
+                  <Badge className={cn('border-0', CONTENT_TYPE_CONFIG[selectedCheck.contentType].color)}>
                     {CONTENT_TYPE_CONFIG[selectedCheck.contentType].label}
                   </Badge>
                   <Badge variant="outline" className={cn(
-                    selectedCheck.complianceScore >= 80 ? 'bg-emerald-50 text-emerald-700' :
-                    selectedCheck.complianceScore >= 50 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
+                    selectedCheck.complianceScore >= 80 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' :
+                    selectedCheck.complianceScore >= 50 ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400' : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400'
                   )}>
                     Score: {selectedCheck.complianceScore}%
                   </Badge>
@@ -551,7 +405,7 @@ export default function AccessibilityPage() {
                 </div>
               </div>
               {selectedCheck.issues.length > 0 && (
-                <div className="border-t pt-4">
+                <div className="border-t border-border/40 pt-4">
                   <p className="font-medium text-sm mb-2">Problèmes détectés</p>
                   <ul className="space-y-2">
                     {selectedCheck.issues.map((issue, idx) => (

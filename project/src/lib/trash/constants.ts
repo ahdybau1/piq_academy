@@ -15,8 +15,10 @@ export const TABLE_RESTORE_ORDER: readonly string[] = [
   'access_matrix',
   'subjects',
   'terms',
+  'content_catalog',
   'chapters',
   'lessons',
+  'exercises',
   'content_versions',
   'validation_queue',
   'subject_class_links',
@@ -27,5 +29,4 @@ export const TABLE_RESTORE_ORDER: readonly string[] = [
   'forum_posts',
   'whatsapp_communities',
   'content_translation_classes',
-  'content_catalog',
 ];

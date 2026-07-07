@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { motion, type Variants } from 'framer-motion';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,24 +40,24 @@ import {
 } from 'lucide-react';
 import { MOCK_SCHOOL_YEAR_PROMOTIONS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
-import type { SchoolYearPromotion } from '@/lib/types';
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
-  draft: { label: 'Brouillon', color: 'text-slate-700', bgColor: 'bg-slate-100' },
-  scheduled: { label: 'Planifié', color: 'text-blue-700', bgColor: 'bg-blue-100' },
-  in_progress: { label: 'En cours', color: 'text-amber-700', bgColor: 'bg-amber-100' },
-  completed: { label: 'Terminé', color: 'text-emerald-700', bgColor: 'bg-emerald-100' },
-  cancelled: { label: 'Annulé', color: 'text-red-700', bgColor: 'bg-red-100' },
+const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.04 } } };
+const fadeUp: Variants = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } } };
+
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  draft: { label: 'Brouillon', color: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
+  scheduled: { label: 'Planifié', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  in_progress: { label: 'En cours', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+  completed: { label: 'Terminé', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+  cancelled: { label: 'Annulé', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
 };
 
 export default function SchoolYearPage() {
   const [showLaunchDialog, setShowLaunchDialog] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [isLaunching, setIsLaunching] = useState(false);
-  const [selectedPromotion, setSelectedPromotion] = useState<SchoolYearPromotion | null>(null);
 
   const activePromotion = MOCK_SCHOOL_YEAR_PROMOTIONS.find(p => p.status === 'in_progress');
-  const lastPromotion = MOCK_SCHOOL_YEAR_PROMOTIONS.find(p => p.status === 'completed');
   const draftPromotion = MOCK_SCHOOL_YEAR_PROMOTIONS.find(p => p.status === 'draft');
 
   const handleLaunch = () => {
@@ -69,7 +70,7 @@ export default function SchoolYearPage() {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="min-h-full space-y-8 pb-12">
         <PageHeader
           title="Passage de classe"
           description="Gestion des campagnes annuelles de passage de classe et suivi des confirmations"
@@ -77,209 +78,179 @@ export default function SchoolYearPage() {
             { label: 'Conformité' },
             { label: 'Passage de classe' },
           ]}
+          actions={
+            !activePromotion && draftPromotion ? (
+              <Button size="sm" className="gap-2" onClick={() => setShowLaunchDialog(true)}>
+                <Play className="h-4 w-4" />
+                Lancer la campagne
+              </Button>
+            ) : !draftPromotion && !activePromotion ? (
+              <Button size="sm" className="gap-2" onClick={() => setShowScheduleDialog(true)}>
+                <Calendar className="h-4 w-4" />
+                Nouvelle campagne
+              </Button>
+            ) : undefined
+          }
         />
 
         {/* Info Banner */}
-        <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
-          <div className="flex items-start gap-3">
-            <GraduationCap className="h-5 w-5 text-blue-600 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-medium text-blue-800">Fonctionnement du passage de classe</p>
-              <p className="text-blue-700 mt-1">
-                <strong>Cas A :</strong> L&apos;élève conserve son compte avec le même identifiant. Sa classe est mise à jour.
-                <br />
-                <strong>Cas B :</strong> L&apos;élève crée un nouveau compte avec une nouvelle adresse email pour la nouvelle année scolaire.
-              </p>
-            </div>
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300">
+          <GraduationCap className="h-4 w-4 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold">Fonctionnement du passage de classe</p>
+            <p className="mt-0.5 text-blue-700/80 dark:text-blue-400/80 text-xs">
+              <strong>Cas A :</strong> L&apos;élève conserve son compte avec le même identifiant. Sa classe est mise à jour.
+              <br />
+              <strong>Cas B :</strong> L&apos;élève crée un nouveau compte avec une nouvelle adresse email pour la nouvelle année scolaire.
+            </p>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Current State */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Année scolaire actuelle</p>
-                  <p className="text-xl font-bold">2024-2025</p>
+        {/* KPI Strip */}
+        <motion.div variants={stagger} initial="hidden" animate="show" className="grid gap-4 sm:grid-cols-3">
+          {[
+            { label: 'Année scolaire actuelle', value: '2024-2025', icon: <Calendar className="h-5 w-5" />, bg: 'bg-primary/10', color: 'text-primary' },
+            { label: 'Élèves actifs', value: '12,580', icon: <Users className="h-5 w-5" />, bg: 'bg-emerald-500/10', color: 'text-emerald-500' },
+            { label: 'Prochaine campagne', value: activePromotion ? 'En cours' : draftPromotion ? 'Planifiée' : 'Non planifiée', icon: <Clock className="h-5 w-5" />, bg: 'bg-amber-500/10', color: 'text-amber-500' },
+          ].map((kpi) => (
+            <motion.div key={kpi.label} variants={fadeUp}
+              className="rounded-2xl border border-border/40 bg-card p-5 shadow-sm">
+              <div className="flex items-start justify-between">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60">{kpi.label}</p>
+                  <p className="mt-2 text-xl font-bold">{kpi.value}</p>
                 </div>
-                <Calendar className="h-8 w-8 text-primary/50" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Élèves actifs</p>
-                  <p className="text-xl font-bold">12,580</p>
+                <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ml-3', kpi.bg, kpi.color)}>
+                  {kpi.icon}
                 </div>
-                <Users className="h-8 w-8 text-emerald-500/50" />
               </div>
-            </CardContent>
-          </Card>
+            </motion.div>
+          ))}
+        </motion.div>
 
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Prochaine campagne</p>
-                  <p className="text-xl font-bold">
-                    {activePromotion ? 'En cours' : draftPromotion ? 'Planifiée' : 'Non planifiée'}
-                  </p>
-                </div>
-                <Clock className="h-8 w-8 text-amber-500/50" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Active/Latest Campaign */}
+        {/* Active Campaign */}
         {activePromotion && (
-          <Card className="border-amber-200 bg-amber-50/50">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Loader2 className="h-5 w-5 animate-spin text-amber-600" />
-                    Campagne en cours: {activePromotion.name}
-                  </CardTitle>
-                  <CardDescription>
-                    Du {new Date(activePromotion.startDate).toLocaleDateString('fr-FR')} au {new Date(activePromotion.endDate).toLocaleDateString('fr-FR')}
-                  </CardDescription>
-                </div>
-                <Badge className={cn(STATUS_CONFIG[activePromotion.status].bgColor, STATUS_CONFIG[activePromotion.status].color)}>
-                  {STATUS_CONFIG[activePromotion.status].label}
-                </Badge>
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl border border-amber-200 bg-amber-50/50 p-6 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="flex items-center gap-2 font-semibold">
+                  <Loader2 className="h-5 w-5 animate-spin text-amber-600" />
+                  Campagne en cours : {activePromotion.name}
+                </p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Du {new Date(activePromotion.startDate).toLocaleDateString('fr-FR')} au {new Date(activePromotion.endDate).toLocaleDateString('fr-FR')}
+                </p>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-6 md:grid-cols-3">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Taux de confirmation</span>
-                    <span className="font-bold text-lg">{activePromotion.confirmationRate ?? 0}%</span>
-                  </div>
-                  <Progress value={activePromotion.confirmationRate ?? 0} className="h-3" />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{activePromotion.confirmedStudents?.toLocaleString() ?? '-'} confirmés</span>
-                    <span>{activePromotion.totalStudents?.toLocaleString() ?? '-'} total</span>
-                  </div>
+              <Badge className={cn('border-0', STATUS_CONFIG[activePromotion.status].color)}>
+                {STATUS_CONFIG[activePromotion.status].label}
+              </Badge>
+            </div>
+            <div className="grid gap-6 md:grid-cols-3">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Taux de confirmation</span>
+                  <span className="font-bold text-lg">{activePromotion.confirmationRate ?? 0}%</span>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2">
-                      <ArrowRight className="h-4 w-4 text-emerald-600" />
-                      Cas A (même compte)
-                    </span>
-                    <span className="font-medium">{activePromotion.caseA?.toLocaleString() ?? '-'}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-blue-600" />
-                      Cas B (nouveau compte)
-                    </span>
-                    <span className="font-medium">{activePromotion.caseB?.toLocaleString() ?? '-'}</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-end gap-2">
-                  <Button variant="outline">
-                    <Pause className="h-4 w-4 mr-2" />
-                    Suspendre
-                  </Button>
-                  <Button>
-                    <ClipboardCheck className="h-4 w-4 mr-2" />
-                    Voir détails
-                  </Button>
+                <Progress value={activePromotion.confirmationRate ?? 0} className="h-3" />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{activePromotion.confirmedStudents?.toLocaleString() ?? '-'} confirmés</span>
+                  <span>{activePromotion.totalStudents?.toLocaleString() ?? '-'} total</span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2">
+                    <ArrowRight className="h-4 w-4 text-emerald-600" />
+                    Cas A (même compte)
+                  </span>
+                  <span className="font-medium">{activePromotion.caseA?.toLocaleString() ?? '-'}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-blue-600" />
+                    Cas B (nouveau compte)
+                  </span>
+                  <span className="font-medium">{activePromotion.caseB?.toLocaleString() ?? '-'}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <Button variant="outline" size="sm">
+                  <Pause className="h-4 w-4 mr-2" />
+                  Suspendre
+                </Button>
+                <Button size="sm">
+                  <ClipboardCheck className="h-4 w-4 mr-2" />
+                  Voir détails
+                </Button>
+              </div>
+            </div>
+          </motion.div>
         )}
 
-        {/* Campaign Actions */}
-        <div className="flex items-center gap-4">
-          {!activePromotion && draftPromotion && (
-            <Button onClick={() => setShowLaunchDialog(true)}>
-              <Play className="h-4 w-4 mr-2" />
-              Lancer la campagne {draftPromotion.name}
-            </Button>
-          )}
-          {!draftPromotion && !activePromotion && (
-            <Button onClick={() => setShowScheduleDialog(true)}>
-              <Calendar className="h-4 w-4 mr-2" />
-              Nouvelle campagne
-            </Button>
-          )}
-        </div>
-
         {/* Campaign History */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Historique des campagnes</CardTitle>
-            <CardDescription>
-              Liste de toutes les campagnes de passage de classe
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Campagne</TableHead>
-                  <TableHead>Période</TableHead>
-                  <TableHead>Élèves concernés</TableHead>
-                  <TableHead>Cas A</TableHead>
-                  <TableHead>Cas B</TableHead>
-                  <TableHead>Confirmation</TableHead>
-                  <TableHead>Statut</TableHead>
+        <div className="rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden">
+          <div className="border-b border-border/40 p-5">
+            <p className="font-semibold">Historique des campagnes</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Liste de toutes les campagnes de passage de classe</p>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border/40 bg-muted/30">
+                <TableHead>Campagne</TableHead>
+                <TableHead>Période</TableHead>
+                <TableHead>Élèves concernés</TableHead>
+                <TableHead>Cas A</TableHead>
+                <TableHead>Cas B</TableHead>
+                <TableHead>Confirmation</TableHead>
+                <TableHead>Statut</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {MOCK_SCHOOL_YEAR_PROMOTIONS.map((promo) => (
+                <TableRow key={promo.id} className="border-border/40 hover:bg-muted/30">
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{promo.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {promo.fromYear} → {promo.toYear}
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      <p>{new Date(promo.startDate).toLocaleDateString('fr-FR')}</p>
+                      <p className="text-muted-foreground">au {new Date(promo.endDate).toLocaleDateString('fr-FR')}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>{promo.totalStudents?.toLocaleString() || '-'}</TableCell>
+                  <TableCell>{promo.caseA?.toLocaleString() || '-'}</TableCell>
+                  <TableCell>{promo.caseB?.toLocaleString() || '-'}</TableCell>
+                  <TableCell>
+                    {promo.confirmationRate ? (
+                      <div className="flex items-center gap-2">
+                        <Progress value={promo.confirmationRate} className="w-20 h-2" />
+                        <span className="text-sm font-medium">{promo.confirmationRate}%</span>
+                      </div>
+                    ) : '-'}
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={cn('border-0', STATUS_CONFIG[promo.status].color)}>
+                      {STATUS_CONFIG[promo.status].label}
+                    </Badge>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {MOCK_SCHOOL_YEAR_PROMOTIONS.map((promo) => (
-                  <TableRow key={promo.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{promo.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {promo.fromYear} → {promo.toYear}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <p>{new Date(promo.startDate).toLocaleDateString('fr-FR')}</p>
-                        <p className="text-muted-foreground">au {new Date(promo.endDate).toLocaleDateString('fr-FR')}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>{promo.totalStudents?.toLocaleString() || '-'}</TableCell>
-                    <TableCell>{promo.caseA?.toLocaleString() || '-'}</TableCell>
-                    <TableCell>{promo.caseB?.toLocaleString() || '-'}</TableCell>
-                    <TableCell>
-                      {promo.confirmationRate ? (
-                        <div className="flex items-center gap-2">
-                          <Progress value={promo.confirmationRate} className="w-20 h-2" />
-                          <span className="text-sm font-medium">{promo.confirmationRate}%</span>
-                        </div>
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={cn(STATUS_CONFIG[promo.status].bgColor, STATUS_CONFIG[promo.status].color)}>
-                        {STATUS_CONFIG[promo.status].label}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
 
         {/* Process Description */}
         <div className="grid gap-6 md:grid-cols-2">
-          <Card>
+          <Card className="rounded-2xl border-border/40 shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <ArrowRight className="h-5 w-5 text-emerald-600" />
                 Cas A : Conservation du compte
               </CardTitle>
@@ -309,9 +280,9 @@ export default function SchoolYearPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="rounded-2xl border-border/40 shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <Users className="h-5 w-5 text-blue-600" />
                 Cas B : Nouveau compte
               </CardTitle>
@@ -365,17 +336,17 @@ export default function SchoolYearPage() {
             </div>
           ) : (
             <div className="py-4 space-y-4">
-              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm">
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm dark:bg-amber-950/30 dark:border-amber-900/50">
                 <div className="flex items-start gap-2">
                   <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
-                  <p className="text-amber-800">
+                  <p className="text-amber-800 dark:text-amber-300">
                     Une fois lancée, la campagne enverra des notifications par email et push à tous les utilisateurs actifs.
                     Assurez-vous que les paramètres de notification sont correctement configurés.
                   </p>
                 </div>
               </div>
               {draftPromotion && (
-                <div className="rounded-lg bg-slate-50 border p-3 text-sm">
+                <div className="rounded-lg bg-muted/40 border border-border/40 p-3 text-sm">
                   <p className="font-medium">{draftPromotion.name}</p>
                   <p className="text-muted-foreground mt-1">
                     {draftPromotion.fromYear} → {draftPromotion.toYear}

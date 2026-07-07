@@ -3,12 +3,23 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { AcademicNodeRow, AcademicNodeDependencies, AuditLogEntry } from './types';
 
-export async function listAcademicNodes(): Promise<AcademicNodeRow[]> {
+/**
+ * @param countryId Filtre optionnel : ne retourne que le nœud pays racine et ses
+ * descendants (les nœuds `pays` stockent `country_id = null`, d'où le `.or()` sur leur
+ * propre id). Omis ou `undefined`, le comportement est inchangé (tous les nœuds).
+ */
+export async function listAcademicNodes(countryId?: string): Promise<AcademicNodeRow[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from('academic_nodes')
     .select('id, parent_id, node_type, name, country_id, display_order, is_active, created_at')
     .order('display_order', { ascending: true });
+
+  if (countryId) {
+    query = query.or(`id.eq.${countryId},country_id.eq.${countryId}`);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw new Error(error.message);
   return data ?? [];
