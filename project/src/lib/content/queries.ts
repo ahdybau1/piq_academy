@@ -50,6 +50,37 @@ export async function listSubjects(countryId?: string): Promise<SubjectRow[]> {
   return data ?? [];
 }
 
+/**
+ * Matières applicables à une classe donnée : rattachement direct (node_id) OU partagé via
+ * un tronc commun (subject_class_links, section 1.5 — ex. "C+D : Informatique"). Sans
+ * cette union, une matière en tronc commun serait invisible dès qu'on choisit une classe
+ * qui n'est pas sa classe de rattachement primaire.
+ */
+export async function listSubjectsForClass(classNodeId: string): Promise<SubjectRow[]> {
+  const supabase = await createClient();
+
+  const [primaryRes, linkedRes] = await Promise.all([
+    supabase.from('subjects').select('id, name, node_id, created_at').eq('node_id', classNodeId),
+    supabase.from('subject_class_links').select('subject_id').eq('class_node_id', classNodeId),
+  ]);
+  if (primaryRes.error) throw new Error(primaryRes.error.message);
+  if (linkedRes.error) throw new Error(linkedRes.error.message);
+
+  const linkedSubjectIds = (linkedRes.data ?? []).map((l) => l.subject_id);
+  let linkedSubjects: SubjectRow[] = [];
+  if (linkedSubjectIds.length > 0) {
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('id, name, node_id, created_at')
+      .in('id', linkedSubjectIds);
+    if (error) throw new Error(error.message);
+    linkedSubjects = data ?? [];
+  }
+
+  const byId = new Map([...(primaryRes.data ?? []), ...linkedSubjects].map((s) => [s.id, s]));
+  return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export async function listChapters(subjectId?: string): Promise<ChapterRow[]> {
   const supabase = await createClient();
   let query = supabase
@@ -190,6 +221,7 @@ export async function listValidationQueue(status?: string, countryId?: string): 
 
   const lessonIds = rows.filter((r) => r.content_type === 'lesson').map((r) => r.content_id);
   const exerciseIds = rows.filter((r) => r.content_type === 'exercise').map((r) => r.content_id);
+  const establishmentPaperIds = rows.filter((r) => r.content_type === 'establishment_paper').map((r) => r.content_id);
 
   const { data: lessons, error: lessonsError } = await supabase
     .from('lessons')
@@ -203,8 +235,15 @@ export async function listValidationQueue(status?: string, countryId?: string): 
     .in('id', exerciseIds.length > 0 ? exerciseIds : ['00000000-0000-0000-0000-000000000000']);
   if (exercisesError) throw new Error(exercisesError.message);
 
+  const { data: establishmentPapers, error: establishmentPapersError } = await supabase
+    .from('establishment_papers')
+    .select('id, establishment_id, class_node_id, subject_id, year')
+    .in('id', establishmentPaperIds.length > 0 ? establishmentPaperIds : ['00000000-0000-0000-0000-000000000000']);
+  if (establishmentPapersError) throw new Error(establishmentPapersError.message);
+
   const lessonById = new Map((lessons ?? []).map((l) => [l.id, l]));
   const exerciseById = new Map((exercises ?? []).map((e) => [e.id, e]));
+  const establishmentPaperById = new Map((establishmentPapers ?? []).map((p) => [p.id, p]));
 
   const chapterIds = new Set<string>();
   (lessons ?? []).forEach((l) => chapterIds.add(l.chapter_id));
@@ -224,6 +263,7 @@ export async function listValidationQueue(status?: string, countryId?: string): 
   (exercises ?? []).forEach((e) => {
     if (e.subject_id) subjectIds.add(e.subject_id);
   });
+  (establishmentPapers ?? []).forEach((p) => subjectIds.add(p.subject_id));
 
   const { data: subjects, error: subjectsError } = await supabase
     .from('subjects')
@@ -232,7 +272,32 @@ export async function listValidationQueue(status?: string, countryId?: string): 
   if (subjectsError) throw new Error(subjectsError.message);
   const subjectById = new Map((subjects ?? []).map((s) => [s.id, s]));
 
+  const { data: establishments, error: establishmentsError } = await supabase
+    .from('establishments')
+    .select('id, name, country_id')
+    .in(
+      'id',
+      (establishmentPapers ?? []).length > 0
+        ? (establishmentPapers ?? []).map((p) => p.establishment_id)
+        : ['00000000-0000-0000-0000-000000000000']
+    );
+  if (establishmentsError) throw new Error(establishmentsError.message);
+  const establishmentById = new Map((establishments ?? []).map((e) => [e.id, e]));
+
+  const { data: paperNodes, error: paperNodesError } = await supabase
+    .from('academic_nodes')
+    .select('id, name')
+    .in(
+      'id',
+      (establishmentPapers ?? []).length > 0
+        ? (establishmentPapers ?? []).map((p) => p.class_node_id)
+        : ['00000000-0000-0000-0000-000000000000']
+    );
+  if (paperNodesError) throw new Error(paperNodesError.message);
+  const paperNodeNameById = new Map((paperNodes ?? []).map((n) => [n.id, n.name]));
+
   let allowedSubjectIds: Set<string> | null = null;
+  let allowedEstablishmentIds: Set<string> | null = null;
   if (countryId) {
     const { data: nodeData, error: nodeError } = await supabase
       .from('academic_nodes')
@@ -241,6 +306,9 @@ export async function listValidationQueue(status?: string, countryId?: string): 
     if (nodeError) throw new Error(nodeError.message);
     const nodeIds = new Set((nodeData ?? []).map((n) => n.id));
     allowedSubjectIds = new Set((subjects ?? []).filter((s) => nodeIds.has(s.node_id)).map((s) => s.id));
+    allowedEstablishmentIds = new Set(
+      (establishments ?? []).filter((e) => e.country_id === countryId).map((e) => e.id)
+    );
   }
 
   /** Résout (chapterId, subjectId) pour une leçon ou un exercice, quel que soit son niveau de rattachement. */
@@ -267,6 +335,10 @@ export async function listValidationQueue(status?: string, countryId?: string): 
   return rows
     .filter((r) => {
       if (!allowedSubjectIds) return true;
+      if (r.content_type === 'establishment_paper') {
+        const paper = establishmentPaperById.get(r.content_id);
+        return paper ? (allowedEstablishmentIds?.has(paper.establishment_id) ?? false) : false;
+      }
       if (r.content_type !== 'lesson' && r.content_type !== 'exercise') return false;
       const subjectId = resolveSubjectId(r);
       return subjectId ? allowedSubjectIds.has(subjectId) : false;
@@ -291,6 +363,17 @@ export async function listValidationQueue(status?: string, countryId?: string): 
           lessonTitle: exercise ? `Exercice — ${EXERCISE_FORMAT_LABELS.get(exercise.format) ?? exercise.format}` : null,
           chapterTitle: chapter?.title ?? null,
           subjectName: subjectId ? subjectById.get(subjectId)?.name ?? null : null,
+        };
+      }
+      if (r.content_type === 'establishment_paper') {
+        const paper = establishmentPaperById.get(r.content_id);
+        const establishmentName = paper ? establishmentById.get(paper.establishment_id)?.name ?? null : null;
+        const className = paper ? paperNodeNameById.get(paper.class_node_id) ?? null : null;
+        return {
+          ...r,
+          lessonTitle: establishmentName ? `Épreuve — ${establishmentName}` : null,
+          chapterTitle: className,
+          subjectName: paper ? subjectById.get(paper.subject_id)?.name ?? null : null,
         };
       }
       return { ...r, lessonTitle: null, chapterTitle: null, subjectName: null };

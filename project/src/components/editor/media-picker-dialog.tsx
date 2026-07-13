@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Image as ImageIcon, Video, Music, FileText, File as FileIcon, Upload, Loader2 } from 'lucide-react';
 import { fetchMedia, uploadMediaFile } from '@/lib/media/api-client';
-import type { MediaRow, MediaType } from '@/lib/media/types';
+import type { MediaItem, MediaType } from '@/lib/media/types';
 import { cn } from '@/lib/utils';
 
 const TYPE_ICON: Record<MediaType, React.ReactNode> = {
@@ -21,12 +21,15 @@ export function MediaPickerDialog({
   open,
   onOpenChange,
   onSelect,
+  classNodeId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelect: (media: MediaRow) => void;
+  onSelect: (media: MediaItem) => void;
+  /** Un média dépend toujours d'une classe/série précise — la bibliothèque affichée et tout nouvel envoi sont scopés à cette classe. */
+  classNodeId: string;
 }) {
-  const [media, setMedia] = useState<MediaRow[]>([]);
+  const [media, setMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,17 +48,17 @@ export function MediaPickerDialog({
 
   useEffect(() => {
     if (!open) return;
-    fetchMedia()
+    fetchMedia(classNodeId)
       .then(setMedia)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [open]);
+  }, [open, classNodeId]);
 
   const handleUpload = async (file: File) => {
     setUploading(true);
     setError(null);
     try {
-      const uploaded = await uploadMediaFile(file);
+      const uploaded = await uploadMediaFile(file, classNodeId);
       setMedia((prev) => [uploaded, ...prev]);
       onSelect(uploaded);
       onOpenChange(false);
@@ -68,7 +71,7 @@ export function MediaPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Insérer un média</DialogTitle>
           <DialogDescription>Image, vidéo, audio, PDF ou document — depuis la bibliothèque ou un nouvel envoi.</DialogDescription>

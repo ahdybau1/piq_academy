@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState, useTransition } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,10 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BookOpen, Layers, FileText, Plus, X, ChevronRight, Send, Unlock, ArrowLeft, Home, Search, Tag, Pencil, ChevronUp, ChevronDown, ListChecks } from 'lucide-react';
+import { BookOpen, Layers, FileText, Plus, X, ChevronRight, Send, Unlock, ArrowLeft, Home, Search, Tag, Pencil, ChevronUp, ChevronDown, ListChecks, Trash2, AlertTriangle } from 'lucide-react';
+import { HierarchicalNodeSelect } from './hierarchical-node-select';
 import {
   fetchSubjects,
+  fetchSubjectsForClass,
   createSubject,
+  updateSubject,
+  deleteSubject,
   fetchSubjectClassLinks,
   addSubjectClassLink,
   removeSubjectClassLink,
@@ -25,6 +29,7 @@ import {
   createChapter,
   updateChapter,
   moveChapter,
+  deleteChapter,
   fetchTerms,
   fetchEstablishments,
   fetchChapterUnlocks,
@@ -33,6 +38,8 @@ import {
   fetchLessons,
   createLesson,
   updateLesson,
+  deleteLesson,
+  moveLesson,
   submitForValidation,
   fetchCatalog,
 } from '@/lib/content/api-client';
@@ -46,6 +53,7 @@ import {
 } from '@/lib/exercises/api-client';
 import { EXERCISE_TYPES, EXERCISE_DIFFICULTIES, EXERCISE_FORMATS, MIN_SUBSCRIPTION_TIERS } from '@/lib/exercises/constants';
 import { fetchAcademicNodes } from '@/lib/academic/api-client';
+import { useWorkingClass } from '@/lib/working-class-context';
 import { CONTENT_STATUS_LABELS } from '@/lib/content/constants';
 import type {
   SubjectRow,
@@ -121,15 +129,18 @@ interface ExerciseContent {
 function ExerciseManager({
   attachment,
   subjectId,
+  classNodeId,
   heading,
   emptyLabel,
 }: {
   attachment: ExerciseAttachment;
   subjectId: string;
+  /** Un média inséré dans l'énoncé/correction est toujours rattaché à cette classe/série. */
+  classNodeId: string;
   heading: string;
   emptyLabel: string;
 }) {
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
   const [exercises, setExercises] = useState<ExerciseWithStatus[]>([]);
   const [catalogEntries, setCatalogEntries] = useState<CatalogEntryRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -142,6 +153,10 @@ function ExerciseManager({
   const [catalogId, setCatalogId] = useState('');
   const [statement, setStatement] = useState<JSONContent>(EMPTY_LESSON_DOC);
   const [correction, setCorrection] = useState<JSONContent>(EMPTY_LESSON_DOC);
+  // Tiptap ne lit `content` qu'au montage — sans remontage forcé, rouvrir le formulaire
+  // (créer après annuler, ou éditer un autre exercice) laisserait l'éditeur affiché à
+  // son ancien contenu au lieu du nouveau. On force un nouvel éditeur à chaque ouverture.
+  const [formInstanceKey, setFormInstanceKey] = useState(0);
 
   const refresh = () => fetchExercises(attachment).then(setExercises).catch((e) => setError(e.message));
 
@@ -152,15 +167,22 @@ function ExerciseManager({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attachmentKey, subjectId]);
 
+  const isRunningRef = useRef(false);
   const run = (fn: () => Promise<{ error?: string }>, cb?: () => void) => {
+    if (isRunningRef.current) return;
+    isRunningRef.current = true;
     setError(null);
     startTransition(async () => {
-      const r = await fn();
-      if (r.error) {
-        setError(r.error);
-        return;
+      try {
+        const r = await fn();
+        if (r.error) {
+          setError(r.error);
+          return;
+        }
+        cb?.();
+      } finally {
+        isRunningRef.current = false;
       }
-      cb?.();
     });
   };
 
@@ -173,6 +195,7 @@ function ExerciseManager({
     setCatalogId('');
     setStatement(EMPTY_LESSON_DOC);
     setCorrection(EMPTY_LESSON_DOC);
+    setFormInstanceKey((k) => k + 1);
     setShowForm(true);
   };
 
@@ -186,6 +209,7 @@ function ExerciseManager({
     const content = (ex.content_json ?? {}) as ExerciseContent;
     setStatement(toEditorDoc(content.statement ?? null));
     setCorrection(toEditorDoc(content.correction ?? null));
+    setFormInstanceKey((k) => k + 1);
     setShowForm(true);
   };
 
@@ -207,7 +231,7 @@ function ExerciseManager({
       {error && <ErrorBanner msg={error} />}
 
       <Dialog open={showForm} onOpenChange={(open) => !open && cancelForm()}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+        <DialogContent className="overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>{editingId ? "Modifier l'exercice" : 'Créer un exercice'}</DialogTitle>
           </DialogHeader>
@@ -232,7 +256,7 @@ function ExerciseManager({
                 <Label>Difficulté</Label>
                 <Select
                   items={EXERCISE_DIFFICULTY_ITEMS}
-                  value={difficulty || undefined}
+                  value={difficulty}
                   onValueChange={(v) => setDifficulty((v as ExerciseDifficulty) ?? '')}
                 >
                   <SelectTrigger className="mt-1">
@@ -282,7 +306,7 @@ function ExerciseManager({
               <Label>Type pédagogique (catalogue)</Label>
               <Select
                 items={Object.fromEntries(catalogEntries.map((c) => [c.id, c.element_type]))}
-                value={catalogId || undefined}
+                value={catalogId}
                 onValueChange={(v) => setCatalogId(v ?? '')}
               >
                 <SelectTrigger className="mt-1">
@@ -300,13 +324,13 @@ function ExerciseManager({
             <div>
               <Label>Énoncé</Label>
               <div className="mt-1">
-                <RichLessonEditor content={statement} onChange={setStatement} />
+                <RichLessonEditor key={`stmt-${formInstanceKey}`} content={statement} onChange={setStatement} classNodeId={classNodeId} />
               </div>
             </div>
             <div>
               <Label>Correction</Label>
               <div className="mt-1">
-                <RichLessonEditor content={correction} onChange={setCorrection} />
+                <RichLessonEditor key={`corr-${formInstanceKey}`} content={correction} onChange={setCorrection} classNodeId={classNodeId} />
               </div>
             </div>
           </div>
@@ -316,6 +340,7 @@ function ExerciseManager({
             </Button>
             <Button
               size="sm"
+              disabled={isPending}
               onClick={() => {
                 const contentJson: ExerciseContent = { statement, correction };
                 const payload = {
@@ -521,7 +546,7 @@ export function ContentPageView({
   initialSubjects: SubjectRow[];
   countryId: string | null;
 }) {
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
 
   const [subjects, setSubjects] = useState(initialSubjects);
   const [error, setError] = useState<string | null>(null);
@@ -552,27 +577,6 @@ export function ContentPageView({
       .catch((e) => setError(e.message));
   }, [countryId]);
 
-  // Une classe assignable est une feuille de l'arbre (aucun nœud enfant) — le vocabulaire
-  // varie par pays, une feuille est le seul critère fiable (même règle que accounts-page.tsx).
-  const leafNodes = useMemo(() => {
-    if (!academicNodes) return [];
-    const parentIds = new Set(academicNodes.map((n) => n.parent_id).filter(Boolean));
-    const byId = new Map(academicNodes.map((n) => [n.id, n]));
-    const pathOf = (id: string): string => {
-      const parts: string[] = [];
-      let cur = byId.get(id);
-      while (cur) {
-        parts.unshift(cur.name);
-        cur = cur.parent_id ? byId.get(cur.parent_id) : undefined;
-      }
-      return parts.join(' › ');
-    };
-    return academicNodes
-      .filter((n) => !parentIds.has(n.id))
-      .map((n) => ({ id: n.id, path: pathOf(n.id) }))
-      .sort((a, b) => a.path.localeCompare(b.path));
-  }, [academicNodes]);
-
   const nodeById = useMemo(() => new Map((academicNodes ?? []).map((n) => [n.id, n])), [academicNodes]);
 
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
@@ -582,11 +586,35 @@ export function ContentPageView({
   const [terms, setTerms] = useState<TermRow[]>([]);
   const [establishments, setEstablishments] = useState<EstablishmentRow[]>([]);
   const [subjectSearch, setSubjectSearch] = useState('');
+  // Filtre par classe/série (section 2.1) : sans lui, des matières de même nom pour des
+  // classes différentes (ex. "Mathématiques" en Première C et en Première D, contenus
+  // distincts) se retrouvent mélangées dans une liste plate sans distinction claire.
+  // Préremplit depuis la « classe de travail » du header (barre du haut) : si l'admin
+  // change de classe là-bas, ce filtre se resynchronise ; un choix local ici reste
+  // possible tant que la classe de travail ne change pas.
+  const { workingClassNodeId } = useWorkingClass();
+  const [filterClassNodeId, setFilterClassNodeId] = useState(workingClassNodeId ?? '');
+  const [classScopedSubjects, setClassScopedSubjects] = useState<SubjectRow[]>([]);
+  const [prevFilterClassNodeId, setPrevFilterClassNodeId] = useState(filterClassNodeId);
+  if (filterClassNodeId !== prevFilterClassNodeId) {
+    setPrevFilterClassNodeId(filterClassNodeId);
+    if (!filterClassNodeId) setClassScopedSubjects([]);
+  }
+  const [prevWorkingClassNodeId, setPrevWorkingClassNodeId] = useState(workingClassNodeId);
+  if (workingClassNodeId !== prevWorkingClassNodeId) {
+    setPrevWorkingClassNodeId(workingClassNodeId);
+    setFilterClassNodeId(workingClassNodeId ?? '');
+  }
+  useEffect(() => {
+    if (!filterClassNodeId) return;
+    fetchSubjectsForClass(filterClassNodeId).then(setClassScopedSubjects).catch((e) => setError(e.message));
+  }, [filterClassNodeId]);
   const [showSubjectForm, setShowSubjectForm] = useState(false);
+  const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [newSubjectNodeId, setNewSubjectNodeId] = useState('');
-  const [newSubjectNodeSearch, setNewSubjectNodeSearch] = useState('');
-  const [addClassLinkNodeId, setAddClassLinkNodeId] = useState('');
+  const [newSubjectAdditionalClassNodeIds, setNewSubjectAdditionalClassNodeIds] = useState<string[]>([]);
+  const [pendingSubjectCascadeId, setPendingSubjectCascadeId] = useState<string | null>(null);
 
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
   const [lessons, setLessons] = useState<LessonWithStatus[]>([]);
@@ -597,13 +625,19 @@ export function ContentPageView({
   const [newChapterIntroduction, setNewChapterIntroduction] = useState('');
   const [newChapterTermId, setNewChapterTermId] = useState('');
   const [newUnlockEstablishmentId, setNewUnlockEstablishmentId] = useState('');
+  const [pendingChapterCascadeId, setPendingChapterCascadeId] = useState<string | null>(null);
 
   const [showLessonForm, setShowLessonForm] = useState(false);
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [newLessonTitle, setNewLessonTitle] = useState('');
   const [newLessonContent, setNewLessonContent] = useState<JSONContent>(EMPTY_LESSON_DOC);
   const [newLessonCatalogId, setNewLessonCatalogId] = useState('');
+  // Voir le commentaire équivalent dans ExerciseManager : force un nouvel éditeur Tiptap
+  // à chaque ouverture du formulaire pour éviter qu'un contenu précédent (annulé ou d'une
+  // autre leçon) ne reste affiché puisque Tiptap ne relit pas `content` après le montage.
+  const [lessonFormInstanceKey, setLessonFormInstanceKey] = useState(0);
   const [expandedLessonId, setExpandedLessonId] = useState<string | null>(null);
+  const [pendingLessonCascadeId, setPendingLessonCascadeId] = useState<string | null>(null);
 
   const selectedSubject = subjects.find((s) => s.id === selectedSubjectId) ?? null;
   const selectedChapter = chapters.find((c) => c.id === selectedChapterId) ?? null;
@@ -635,16 +669,46 @@ export function ContentPageView({
     refreshUnlocks(selectedChapterId);
   }, [selectedChapterId]);
 
+  const isRunningRef = useRef(false);
   const run = (fn: () => Promise<{ error?: string }>, cb?: () => void) => {
+    if (isRunningRef.current) return;
+    isRunningRef.current = true;
     setError(null);
     startTransition(async () => {
-      const r = await fn();
-      if (r.error) {
-        setError(r.error);
-        return;
+      try {
+        const r = await fn();
+        if (r.error) {
+          setError(r.error);
+          return;
+        }
+        cb?.();
+      } finally {
+        isRunningRef.current = false;
       }
-      cb?.();
     });
+  };
+
+  const startCreateSubject = () => {
+    setEditingSubjectId(null);
+    setNewSubjectName('');
+    setNewSubjectNodeId('');
+    setNewSubjectAdditionalClassNodeIds([]);
+    setShowSubjectForm(true);
+  };
+
+  const startEditSubject = (s: SubjectRow) => {
+    setEditingSubjectId(s.id);
+    setNewSubjectName(s.name);
+    setNewSubjectNodeId(s.node_id);
+    setShowSubjectForm(true);
+  };
+
+  const cancelSubjectForm = () => {
+    setShowSubjectForm(false);
+    setEditingSubjectId(null);
+    setNewSubjectName('');
+    setNewSubjectNodeId('');
+    setNewSubjectAdditionalClassNodeIds([]);
   };
 
   const openSubject = (id: string) => {
@@ -656,6 +720,7 @@ export function ContentPageView({
     setChapterUnlocks([]);
     setTerms([]);
     setEstablishments([]);
+    setPendingChapterCascadeId(null);
     cancelChapterForm();
     goTo(1, 'forward');
   };
@@ -665,6 +730,7 @@ export function ContentPageView({
     setLessons([]);
     setChapterUnlocks([]);
     setExpandedLessonId(null);
+    setPendingLessonCascadeId(null);
     cancelLessonForm();
     goTo(2, 'forward');
   };
@@ -674,6 +740,7 @@ export function ContentPageView({
     setNewLessonTitle('');
     setNewLessonContent(EMPTY_LESSON_DOC);
     setNewLessonCatalogId('');
+    setLessonFormInstanceKey((k) => k + 1);
     setShowLessonForm(true);
   };
 
@@ -682,6 +749,7 @@ export function ContentPageView({
     setNewLessonTitle(lesson.title);
     setNewLessonContent(toEditorDoc(lesson.content_json));
     setNewLessonCatalogId(lesson.catalog_id ?? '');
+    setLessonFormInstanceKey((k) => k + 1);
     setShowLessonForm(true);
   };
 
@@ -717,14 +785,11 @@ export function ContentPageView({
     setNewChapterTermId('');
   };
 
-  const linkedClassIds = new Set(subjectClassLinks.map((l) => l.class_node_id));
-  const availableForLinking = leafNodes.filter((n) => n.id !== selectedSubject?.node_id && !linkedClassIds.has(n.id));
-  const filteredNewSubjectNodes = newSubjectNodeSearch
-    ? leafNodes.filter((n) => n.path.toLowerCase().includes(newSubjectNodeSearch.toLowerCase()))
-    : leafNodes;
-  const filteredSubjects = subjectSearch ? subjects.filter((s) => s.name.toLowerCase().includes(subjectSearch.toLowerCase())) : subjects;
+  const subjectsInScope = filterClassNodeId ? classScopedSubjects : subjects;
+  const filteredSubjects = subjectSearch
+    ? subjectsInScope.filter((s) => s.name.toLowerCase().includes(subjectSearch.toLowerCase()))
+    : subjectsInScope;
 
-  const addClassLinkItems = Object.fromEntries(availableForLinking.map((n) => [n.id, n.path]));
   const chapterTermItems = Object.fromEntries(terms.map((t) => [t.id, `${t.name} — ${t.school_year}`]));
   const establishmentItems = Object.fromEntries(establishments.map((e) => [e.id, e.name]));
 
@@ -735,7 +800,7 @@ export function ContentPageView({
         title="Matières & Contenu"
         subtitle="Sélectionnez une matière pour gérer ses chapitres et leçons"
         actions={
-          <Button onClick={() => setShowSubjectForm((v) => !v)} size="sm" className="gap-2">
+          <Button onClick={startCreateSubject} size="sm" className="gap-2">
             <Plus className="h-4 w-4" />
             Nouvelle matière
           </Button>
@@ -745,98 +810,170 @@ export function ContentPageView({
       {error && <ErrorBanner msg={error} />}
 
       <CollapseForm open={showSubjectForm}>
-        <p className="mb-4 text-sm font-semibold text-foreground">Créer une matière</p>
+        <p className="mb-4 text-sm font-semibold text-foreground">{editingSubjectId ? 'Modifier la matière' : 'Créer une matière'}</p>
         <div className="space-y-3">
           <div>
             <Label>Nom de la matière</Label>
             <Input className="mt-1" placeholder="ex. Mathématiques" value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} />
           </div>
-          <div>
-            <Label>Classe de rattachement</Label>
-            <Input
-              className="mt-1"
-              placeholder="Rechercher une classe…"
-              value={newSubjectNodeSearch}
-              onChange={(e) => setNewSubjectNodeSearch(e.target.value)}
-            />
-            {newSubjectNodeSearch && (
-              <div className="mt-1.5 max-h-36 overflow-y-auto rounded-xl border border-border/50 bg-card shadow-sm">
-                {filteredNewSubjectNodes.slice(0, 8).map((n) => (
-                  <button
-                    key={n.id}
-                    onClick={() => {
-                      setNewSubjectNodeId(n.id);
-                      setNewSubjectNodeSearch(n.path);
+          {!editingSubjectId && countryId && (
+            <>
+              <HierarchicalNodeSelect
+                nodes={academicNodes ?? []}
+                countryId={countryId}
+                value={newSubjectNodeId}
+                onChange={setNewSubjectNodeId}
+              />
+              <div className="space-y-2">
+                <Label>Classes liées (tronc commun)</Label>
+                <div className="flex flex-wrap items-center gap-2">
+                  {newSubjectAdditionalClassNodeIds.map((id) => {
+                    const node = (academicNodes ?? []).find((n) => n.id === id);
+                    return (
+                      <span key={id} className="flex items-center gap-1 rounded-full border border-border/50 bg-muted/60 px-2.5 py-0.5 text-xs font-medium">
+                        {node?.name ?? id}
+                        <button onClick={() => setNewSubjectAdditionalClassNodeIds((prev) => prev.filter((x) => x !== id))}>
+                          <X className="h-3 w-3 text-muted-foreground transition-colors hover:text-rose-600" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                  <HierarchicalNodeSelect
+                    nodes={academicNodes ?? []}
+                    countryId={countryId}
+                    value=""
+                    onChange={(id) => {
+                      if (!id || id === newSubjectNodeId || newSubjectAdditionalClassNodeIds.includes(id)) return;
+                      setNewSubjectAdditionalClassNodeIds((prev) => [...prev, id]);
                     }}
-                    className={cn('w-full px-3 py-2 text-left text-xs transition-colors hover:bg-muted', newSubjectNodeId === n.id && 'bg-primary/10 font-medium')}
-                  >
-                    {n.path}
-                  </button>
-                ))}
+                    excludeLeafIds={newSubjectNodeId ? [newSubjectNodeId, ...newSubjectAdditionalClassNodeIds] : newSubjectAdditionalClassNodeIds}
+                    compact
+                  />
+                </div>
               </div>
-            )}
-          </div>
+            </>
+          )}
           <div className="flex gap-2 pt-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setShowSubjectForm(false);
-                setNewSubjectName('');
-                setNewSubjectNodeId('');
-                setNewSubjectNodeSearch('');
-              }}
-            >
+            <Button variant="outline" size="sm" onClick={cancelSubjectForm}>
               Annuler
             </Button>
             <Button
               size="sm"
-              disabled={!newSubjectName || !newSubjectNodeId}
+              disabled={isPending || !newSubjectName || (!editingSubjectId && !newSubjectNodeId)}
               onClick={() =>
-                run(() => createSubject({ name: newSubjectName, nodeId: newSubjectNodeId, additionalClassNodeIds: [] }), () => {
-                  setNewSubjectName('');
-                  setNewSubjectNodeId('');
-                  setNewSubjectNodeSearch('');
-                  setShowSubjectForm(false);
-                  refreshSubjects();
-                })
+                editingSubjectId
+                  ? run(() => updateSubject({ id: editingSubjectId, name: newSubjectName }), () => {
+                      cancelSubjectForm();
+                      refreshSubjects();
+                    })
+                  : run(
+                      () =>
+                        createSubject({
+                          name: newSubjectName,
+                          nodeId: newSubjectNodeId,
+                          additionalClassNodeIds: newSubjectAdditionalClassNodeIds,
+                        }),
+                      () => {
+                        cancelSubjectForm();
+                        refreshSubjects();
+                      }
+                    )
               }
             >
-              Créer la matière
+              {editingSubjectId ? 'Enregistrer' : 'Créer la matière'}
             </Button>
           </div>
         </div>
       </CollapseForm>
 
-      <div className="relative max-w-xs">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
-        <Input className="pl-9" placeholder="Rechercher une matière…" value={subjectSearch} onChange={(e) => setSubjectSearch(e.target.value)} />
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="relative max-w-xs flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+          <Input className="pl-9" placeholder="Rechercher une matière…" value={subjectSearch} onChange={(e) => setSubjectSearch(e.target.value)} />
+        </div>
+        {countryId && (
+          <HierarchicalNodeSelect nodes={academicNodes ?? []} countryId={countryId} value={filterClassNodeId} onChange={setFilterClassNodeId} compact />
+        )}
+        {filterClassNodeId && (
+          <button onClick={() => setFilterClassNodeId('')} className="text-xs font-medium text-muted-foreground hover:text-foreground hover:underline">
+            Toutes les classes
+          </button>
+        )}
       </div>
 
       <motion.div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" variants={stagger} initial="hidden" animate="show">
         {filteredSubjects.map((s) => {
-          const nodePath = leafNodes.find((n) => n.id === s.node_id)?.path ?? s.node_id;
+          const className = nodeById.get(s.node_id)?.name ?? 'Classe supprimée';
           return (
-            <motion.button
+            <motion.div
               key={s.id}
               variants={item}
-              onClick={() => openSubject(s.id)}
-              className="group w-full rounded-2xl border border-border/40 bg-card p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-lg"
+              className="group relative w-full rounded-2xl border border-border/40 bg-card p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-lg"
             >
-              <div className="flex items-start justify-between">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
-                  <BookOpen className="h-5 w-5" />
+              <button onClick={() => openSubject(s.id)} className="w-full text-left">
+                <div className="flex items-start justify-between">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:text-primary/50" />
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:text-primary/50" />
+                <div className="mt-4">
+                  <p className="font-semibold text-foreground transition-colors group-hover:text-primary">{s.name}</p>
+                  <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                    <Tag className="h-3 w-3" />
+                    <span className="truncate">{className}</span>
+                  </p>
+                </div>
+              </button>
+              <div className="mt-3 flex items-center justify-end gap-1 border-t border-border/30 pt-2 opacity-0 transition-opacity group-hover:opacity-100">
+                <button
+                  onClick={() => startEditSubject(s)}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  title="Modifier"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => {
+                    setError(null);
+                    startTransition(async () => {
+                      const result = await deleteSubject({ id: s.id });
+                      if (result.error) {
+                        setPendingSubjectCascadeId(s.id);
+                        return;
+                      }
+                      refreshSubjects();
+                    });
+                  }}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20"
+                  title="Supprimer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </div>
-              <div className="mt-4">
-                <p className="font-semibold text-foreground transition-colors group-hover:text-primary">{s.name}</p>
-                <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                  <Tag className="h-3 w-3" />
-                  <span className="truncate">{nodePath}</span>
-                </p>
-              </div>
-            </motion.button>
+              {pendingSubjectCascadeId === s.id && (
+                <div className="mt-2 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  <span className="flex-1">Contenu rattaché — confirmer la suppression de tout ?</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 shrink-0 border-amber-300 px-2 text-[11px] text-amber-800 dark:text-amber-300"
+                    onClick={() =>
+                      run(() => deleteSubject({ id: s.id, cascade: true }), () => {
+                        setPendingSubjectCascadeId(null);
+                        refreshSubjects();
+                      })
+                    }
+                  >
+                    Confirmer
+                  </Button>
+                  <button onClick={() => setPendingSubjectCascadeId(null)} className="shrink-0 text-[11px] font-medium hover:underline">
+                    Annuler
+                  </button>
+                </div>
+              )}
+            </motion.div>
           );
         })}
         {filteredSubjects.length === 0 && (
@@ -867,48 +1004,38 @@ export function ContentPageView({
 
       {error && <ErrorBanner msg={error} />}
 
-      {subjectClassLinks.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground">Classes liées :</span>
-          {subjectClassLinks.map((l) => (
-            <span key={l.class_node_id} className="flex items-center gap-1 rounded-full border border-border/50 bg-muted/60 px-2.5 py-0.5 text-xs font-medium">
-              {l.className ?? 'Classe supprimée'}
-              <button
-                onClick={() =>
-                  run(() => removeSubjectClassLink({ subjectId: selectedSubject!.id, classNodeId: l.class_node_id }), () => refreshLinks(selectedSubject!.id))
-                }
-              >
-                <X className="h-3 w-3 text-muted-foreground transition-colors hover:text-rose-600" />
-              </button>
-            </span>
-          ))}
-          <div className="flex items-center gap-1">
-            <Select items={addClassLinkItems} value={addClassLinkNodeId} onValueChange={(v) => setAddClassLinkNodeId(v ?? '')}>
-              <SelectTrigger className="h-7 w-48 rounded-full border-dashed text-xs">
-                <SelectValue placeholder="Ajouter une classe…" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableForLinking.map((n) => (
-                  <SelectItem key={n.id} value={n.id} className="text-xs">
-                    {n.path}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {addClassLinkNodeId && (
-              <Button
-                size="sm"
-                className="h-7 rounded-full px-3 text-xs"
-                onClick={() =>
-                  run(() => addSubjectClassLink({ subjectId: selectedSubject!.id, classNodeId: addClassLinkNodeId }), () => {
-                    setAddClassLinkNodeId('');
-                    refreshLinks(selectedSubject!.id);
-                  })
-                }
-              >
-                <Plus className="h-3 w-3" />
-              </Button>
+      {selectedSubject && countryId && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">
+            Classes liées (tronc commun — contenu partagé, section 1.5) :
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {subjectClassLinks.map((l) => (
+              <span key={l.class_node_id} className="flex items-center gap-1 rounded-full border border-border/50 bg-muted/60 px-2.5 py-0.5 text-xs font-medium">
+                {l.className ?? 'Classe supprimée'}
+                <button
+                  onClick={() =>
+                    run(() => removeSubjectClassLink({ subjectId: selectedSubject.id, classNodeId: l.class_node_id }), () => refreshLinks(selectedSubject.id))
+                  }
+                >
+                  <X className="h-3 w-3 text-muted-foreground transition-colors hover:text-rose-600" />
+                </button>
+              </span>
+            ))}
+            {subjectClassLinks.length === 0 && (
+              <span className="text-xs text-muted-foreground/60">Aucune — matière propre à sa seule classe.</span>
             )}
+            <HierarchicalNodeSelect
+              nodes={academicNodes ?? []}
+              countryId={countryId}
+              value=""
+              onChange={(id) => {
+                if (!id) return;
+                run(() => addSubjectClassLink({ subjectId: selectedSubject.id, classNodeId: id }), () => refreshLinks(selectedSubject.id));
+              }}
+              excludeLeafIds={[selectedSubject.node_id, ...subjectClassLinks.map((l) => l.class_node_id)]}
+              compact
+            />
           </div>
         </div>
       )}
@@ -952,7 +1079,7 @@ export function ContentPageView({
             </Button>
             <Button
               size="sm"
-              disabled={!newChapterTitle || !newChapterTermId}
+              disabled={isPending || !newChapterTitle || !newChapterTermId}
               onClick={() =>
                 editingChapterId
                   ? run(
@@ -979,46 +1106,83 @@ export function ContentPageView({
 
       <motion.div className="space-y-3" variants={stagger} initial="hidden" animate="show">
         {chapters.map((ch, idx) => (
-          <motion.div
-            key={ch.id}
-            variants={item}
-            className="group flex items-center gap-2 rounded-2xl border border-border/40 bg-card p-2 shadow-sm transition-all duration-200 hover:border-primary/25 hover:shadow-lg"
-          >
-            <div className="flex shrink-0 flex-col">
-              <button
-                className="rounded p-0.5 text-muted-foreground/50 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-20"
-                disabled={idx === 0}
-                onClick={() => run(() => moveChapter({ id: ch.id, direction: 'up', subjectId: selectedSubject!.id }), () => refreshChapters(selectedSubject!.id))}
-                title="Monter"
-              >
-                <ChevronUp className="h-3.5 w-3.5" />
+          <motion.div key={ch.id} variants={item}>
+            <div className="group flex items-center gap-2 rounded-2xl border border-border/40 bg-card p-2 shadow-sm transition-all duration-200 hover:border-primary/25 hover:shadow-lg">
+              <div className="flex shrink-0 flex-col">
+                <button
+                  className="rounded p-0.5 text-muted-foreground/50 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-20"
+                  disabled={idx === 0}
+                  onClick={() => run(() => moveChapter({ id: ch.id, direction: 'up', subjectId: selectedSubject!.id }), () => refreshChapters(selectedSubject!.id))}
+                  title="Monter"
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  className="rounded p-0.5 text-muted-foreground/50 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-20"
+                  disabled={idx === chapters.length - 1}
+                  onClick={() => run(() => moveChapter({ id: ch.id, direction: 'down', subjectId: selectedSubject!.id }), () => refreshChapters(selectedSubject!.id))}
+                  title="Descendre"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <button onClick={() => openChapter(ch.id)} className="group flex flex-1 items-center gap-4 rounded-xl p-3 text-left transition-colors hover:bg-muted/40">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-sm font-bold text-indigo-600 dark:text-indigo-400">
+                  {String(idx + 1).padStart(2, '0')}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-foreground transition-colors group-hover:text-primary">{ch.title}</p>
+                  {ch.term_id && <p className="mt-0.5 text-xs text-muted-foreground">{terms.find((t) => t.id === ch.term_id)?.name ?? 'Trimestre inconnu'}</p>}
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:text-primary/50" />
               </button>
               <button
-                className="rounded p-0.5 text-muted-foreground/50 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-20"
-                disabled={idx === chapters.length - 1}
-                onClick={() => run(() => moveChapter({ id: ch.id, direction: 'down', subjectId: selectedSubject!.id }), () => refreshChapters(selectedSubject!.id))}
-                title="Descendre"
+                onClick={() => startEditChapter(ch)}
+                className="shrink-0 rounded-lg p-2 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
+                title="Modifier"
               >
-                <ChevronDown className="h-3.5 w-3.5" />
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => {
+                  setError(null);
+                  startTransition(async () => {
+                    const result = await deleteChapter({ id: ch.id });
+                    if (result.error) {
+                      setPendingChapterCascadeId(ch.id);
+                      return;
+                    }
+                    refreshChapters(selectedSubject!.id);
+                  });
+                }}
+                className="shrink-0 rounded-lg p-2 text-muted-foreground opacity-0 transition-opacity hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
+                title="Supprimer"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
               </button>
             </div>
-            <button onClick={() => openChapter(ch.id)} className="group flex flex-1 items-center gap-4 rounded-xl p-3 text-left transition-colors hover:bg-muted/40">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-sm font-bold text-indigo-600 dark:text-indigo-400">
-                {String(idx + 1).padStart(2, '0')}
+            {pendingChapterCascadeId === ch.id && (
+              <div className="mt-2 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                <span className="flex-1">Contenu rattaché — confirmer la suppression de tout ?</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 shrink-0 border-amber-300 px-2 text-[11px] text-amber-800 dark:text-amber-300"
+                  onClick={() =>
+                    run(() => deleteChapter({ id: ch.id, cascade: true }), () => {
+                      setPendingChapterCascadeId(null);
+                      refreshChapters(selectedSubject!.id);
+                    })
+                  }
+                >
+                  Confirmer
+                </Button>
+                <button onClick={() => setPendingChapterCascadeId(null)} className="shrink-0 text-[11px] font-medium hover:underline">
+                  Annuler
+                </button>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-foreground transition-colors group-hover:text-primary">{ch.title}</p>
-                {ch.term_id && <p className="mt-0.5 text-xs text-muted-foreground">{terms.find((t) => t.id === ch.term_id)?.name ?? 'Trimestre inconnu'}</p>}
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:text-primary/50" />
-            </button>
-            <button
-              onClick={() => startEditChapter(ch)}
-              className="shrink-0 rounded-lg p-2 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
-              title="Modifier"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
+            )}
           </motion.div>
         ))}
         {chapters.length === 0 && (
@@ -1033,6 +1197,7 @@ export function ContentPageView({
         <ExerciseManager
           attachment={{ level: 'subject', subjectId: selectedSubject.id }}
           subjectId={selectedSubject.id}
+          classNodeId={selectedSubject.node_id}
           heading="Exercices indépendants (mélange de chapitres, type examen)"
           emptyLabel="Aucun exercice indépendant pour cette matière"
         />
@@ -1109,7 +1274,7 @@ export function ContentPageView({
       )}
 
       <Dialog open={showLessonForm} onOpenChange={(open) => !open && cancelLessonForm()}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+        <DialogContent className="overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>{editingLessonId ? 'Modifier la leçon' : 'Créer une leçon'}</DialogTitle>
           </DialogHeader>
@@ -1122,7 +1287,7 @@ export function ContentPageView({
               <Label>Type pédagogique (catalogue)</Label>
               <Select
                 items={Object.fromEntries(catalogEntries.map((c) => [c.id, c.element_type]))}
-                value={newLessonCatalogId || undefined}
+                value={newLessonCatalogId}
                 onValueChange={(v) => setNewLessonCatalogId(v ?? '')}
               >
                 <SelectTrigger className="mt-1">
@@ -1140,7 +1305,12 @@ export function ContentPageView({
             <div>
               <Label>Contenu</Label>
               <div className="mt-1">
-                <RichLessonEditor content={newLessonContent} onChange={setNewLessonContent} />
+                <RichLessonEditor
+                  key={`lesson-${lessonFormInstanceKey}`}
+                  content={newLessonContent}
+                  onChange={setNewLessonContent}
+                  classNodeId={selectedSubject?.node_id ?? ''}
+                />
               </div>
             </div>
           </div>
@@ -1150,7 +1320,7 @@ export function ContentPageView({
             </Button>
             <Button
               size="sm"
-              disabled={!newLessonTitle}
+              disabled={isPending || !newLessonTitle}
               onClick={() =>
                 editingLessonId
                   ? run(
@@ -1198,6 +1368,24 @@ export function ContentPageView({
               className="group rounded-2xl border border-border/40 bg-card p-5 shadow-sm transition-all hover:border-border/70 hover:shadow-md"
             >
               <div className="flex items-start gap-4">
+                <div className="flex shrink-0 flex-col">
+                  <button
+                    className="rounded p-0.5 text-muted-foreground/50 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-20"
+                    disabled={idx === 0}
+                    onClick={() => run(() => moveLesson({ id: lesson.id, direction: 'up', chapterId: selectedChapterId! }), () => refreshLessons(selectedChapterId!))}
+                    title="Monter"
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    className="rounded p-0.5 text-muted-foreground/50 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-20"
+                    disabled={idx === lessons.length - 1}
+                    onClick={() => run(() => moveLesson({ id: lesson.id, direction: 'down', chapterId: selectedChapterId! }), () => refreshLessons(selectedChapterId!))}
+                    title="Descendre"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-sm font-bold text-amber-600 dark:text-amber-400">
                   {String(idx + 1).padStart(2, '0')}
                 </div>
@@ -1241,12 +1429,52 @@ export function ContentPageView({
                     Soumettre
                   </Button>
                 )}
+                <button
+                  onClick={() => {
+                    setError(null);
+                    startTransition(async () => {
+                      const result = await deleteLesson({ id: lesson.id });
+                      if (result.error) {
+                        setPendingLessonCascadeId(lesson.id);
+                        return;
+                      }
+                      refreshLessons(selectedChapterId!);
+                    });
+                  }}
+                  className="shrink-0 rounded-lg p-2 text-muted-foreground opacity-0 transition-opacity hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
+                  title="Supprimer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </div>
-              {expandedLessonId === lesson.id && (
+              {pendingLessonCascadeId === lesson.id && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  <span className="flex-1">Exercices rattachés — confirmer la suppression de tout ?</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 shrink-0 border-amber-300 px-2 text-[11px] text-amber-800 dark:text-amber-300"
+                    onClick={() =>
+                      run(() => deleteLesson({ id: lesson.id, cascade: true }), () => {
+                        setPendingLessonCascadeId(null);
+                        refreshLessons(selectedChapterId!);
+                      })
+                    }
+                  >
+                    Confirmer
+                  </Button>
+                  <button onClick={() => setPendingLessonCascadeId(null)} className="shrink-0 text-[11px] font-medium hover:underline">
+                    Annuler
+                  </button>
+                </div>
+              )}
+              {expandedLessonId === lesson.id && selectedSubject && (
                 <div className="mt-4 border-t border-border/40 pt-4">
                   <ExerciseManager
                     attachment={{ level: 'lesson', lessonId: lesson.id }}
-                    subjectId={selectedSubject!.id}
+                    subjectId={selectedSubject.id}
+                    classNodeId={selectedSubject.node_id}
                     heading={`Exercices de « ${lesson.title} »`}
                     emptyLabel="Aucun exercice pour cette leçon"
                   />
@@ -1263,10 +1491,11 @@ export function ContentPageView({
         )}
       </motion.div>
 
-      {selectedChapterId && (
+      {selectedChapterId && selectedSubject && (
         <ExerciseManager
           attachment={{ level: 'chapter', chapterId: selectedChapterId }}
-          subjectId={selectedSubject!.id}
+          subjectId={selectedSubject.id}
+          classNodeId={selectedSubject.node_id}
           heading="Exercices du chapitre (entraînement général, hors leçon précise)"
           emptyLabel="Aucun exercice au niveau du chapitre"
         />

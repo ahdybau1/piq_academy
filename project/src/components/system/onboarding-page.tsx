@@ -300,7 +300,7 @@ export function OnboardingPage() {
             setEditStep(null);
           }}
         >
-          <DialogContent className="sm:max-w-md">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{editStep ? "Modifier l'étape" : 'Nouvelle étape'}</DialogTitle>
               <DialogDescription>
@@ -343,7 +343,7 @@ export function OnboardingPage() {
       )}
 
       <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Supprimer cette étape ?</DialogTitle>
             <DialogDescription>&laquo; {deleteTarget?.title} &raquo; sera retirée du guide. Cette action est irréversible.</DialogDescription>

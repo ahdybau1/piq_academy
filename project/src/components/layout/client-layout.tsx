@@ -4,6 +4,7 @@ import React from 'react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import { AuthProvider, type AcademicCountry } from '@/lib/app-context';
+import { WorkingClassProvider } from '@/lib/working-class-context';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/layout/app-sidebar';
@@ -40,20 +41,22 @@ export function ClientLayout({
 }) {
   return (
     <AuthProvider currentUser={currentUser} availableCountries={availableCountries} selectedCountryId={selectedCountryId}>
-      <TooltipProvider>
-        <SidebarProvider>
-          <AppSidebar />
-          <SidebarInset className="flex min-h-screen flex-col overflow-hidden">
-            <Header />
-            <main
-              className="custom-scrollbar flex-1 overflow-y-auto px-4 py-5 lg:px-6 lg:py-6"
-              style={{ background: 'var(--page-bg)' }}
-            >
-              <PageTransition>{children}</PageTransition>
-            </main>
-          </SidebarInset>
-        </SidebarProvider>
-      </TooltipProvider>
+      <WorkingClassProvider>
+        <TooltipProvider>
+          <SidebarProvider>
+            <AppSidebar />
+            <SidebarInset className="flex min-h-screen flex-col overflow-hidden">
+              <Header />
+              <main
+                className="custom-scrollbar flex-1 overflow-y-auto px-4 py-5 lg:px-6 lg:py-6"
+                style={{ background: 'var(--page-bg)' }}
+              >
+                <PageTransition>{children}</PageTransition>
+              </main>
+            </SidebarInset>
+          </SidebarProvider>
+        </TooltipProvider>
+      </WorkingClassProvider>
     </AuthProvider>
   );
 }

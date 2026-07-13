@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'nodeType et name sont requis.' }, { status: 400 });
   }
 
-  const result = await createNode({ nodeType: body.nodeType, name: body.name, parentId: body.parentId ?? null });
+  const result = await createNode({ nodeType: body.nodeType, name: body.name, parentId: body.parentId ?? null, adminId: guard.admin.id });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

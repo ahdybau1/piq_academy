@@ -112,8 +112,8 @@ export default function AdvertisingPage() {
           },
           {
             label: 'Impressions (mois)',
-            value: totalImpressions.toLocaleString(),
-            sub: `${totalClicks.toLocaleString()} clics`,
+            value: totalImpressions.toLocaleString('fr-FR'),
+            sub: `${totalClicks.toLocaleString('fr-FR')} clics`,
             icon: <Eye className="h-5 w-5" />, bg: 'bg-blue-500/10', color: 'text-blue-500',
           },
           {
@@ -184,7 +184,7 @@ export default function AdvertisingPage() {
                       <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Actives</p>
                     </div>
                     <div className="text-center">
-                      <p className="font-semibold">{impressions.toLocaleString()}</p>
+                      <p className="font-semibold">{impressions.toLocaleString('fr-FR')}</p>
                       <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Impressions</p>
                     </div>
                   </div>
@@ -239,8 +239,8 @@ export default function AdvertisingPage() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="text-sm font-medium">{campaign.impressions.toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground">{campaign.clicks.toLocaleString()} clics</p>
+                          <p className="text-sm font-medium">{campaign.impressions.toLocaleString('fr-FR')}</p>
+                          <p className="text-xs text-muted-foreground">{campaign.clicks.toLocaleString('fr-FR')} clics</p>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -311,7 +311,7 @@ export default function AdvertisingPage() {
 
       {/* Advertiser detail dialog */}
       <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{selected?.name}</DialogTitle>
             <DialogDescription>{selected?.contactEmail}</DialogDescription>
@@ -322,7 +322,7 @@ export default function AdvertisingPage() {
                 {[
                   ['Campagnes', selected.campaigns.length],
                   ['Actives', selected.campaigns.filter(c => c.status === 'active').length],
-                  ['Impressions', selected.campaigns.reduce((s, c) => s + c.impressions, 0).toLocaleString()],
+                  ['Impressions', selected.campaigns.reduce((s, c) => s + c.impressions, 0).toLocaleString('fr-FR')],
                 ].map(([l, v]) => (
                   <div key={l as string} className="rounded-xl border border-border/40 bg-muted/30 p-3 text-center">
                     <p className="text-xl font-bold">{v}</p>
@@ -352,7 +352,7 @@ export default function AdvertisingPage() {
 
       {/* Add advertiser dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Nouvel annonceur</DialogTitle>
             <DialogDescription>Ajoutez un partenaire publicitaire à la plateforme.</DialogDescription>

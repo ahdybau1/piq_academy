@@ -183,7 +183,7 @@ export default function TranslationsPage() {
 
       {/* Add language dialog */}
       <Dialog open={addLangOpen} onOpenChange={setAddLangOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent>
           <DialogHeader><DialogTitle>Ajouter une langue</DialogTitle><DialogDescription>La nouvelle langue sera visible dans les paramètres de l&apos;application.</DialogDescription></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5"><Label>Code langue (ISO 639-1)</Label><Input placeholder="Ex : es, pt, de…" /></div>
@@ -208,7 +208,7 @@ export default function TranslationsPage() {
 
       {/* Edit key dialog */}
       <Dialog open={editKeyOpen} onOpenChange={setEditKeyOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent>
           <DialogHeader><DialogTitle>Modifier la traduction</DialogTitle><DialogDescription className="font-mono text-xs">{editKey?.key}</DialogDescription></DialogHeader>
           {editKey && (
             <div className="space-y-3 py-2">

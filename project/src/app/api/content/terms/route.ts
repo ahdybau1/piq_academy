@@ -40,6 +40,7 @@ export async function POST(request: Request) {
     schoolYear: body.schoolYear,
     startDate: body.startDate,
     endDate: body.endDate,
+    adminId: guard.admin.id,
   });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json({ ok: true });

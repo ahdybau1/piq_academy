@@ -14,6 +14,22 @@ function attachmentColumns(attachment: ExerciseAttachment) {
   return { lesson_id: null, chapter_id: null, subject_id: attachment.subjectId };
 }
 
+/**
+ * `.match({ col: null })` sérialise les valeurs `null` en `eq.null` (chaîne littérale)
+ * plutôt que `is.null` — PostgREST tente alors de caster "null" en uuid et échoue.
+ * On applique donc explicitement `.eq()` pour la colonne renseignée et `.is(..., null)`
+ * pour les deux autres, plutôt que `.match()` sur l'objet complet.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- le type exact du query builder Postgrest varie selon le point de chaînage
+function applyAttachmentFilter(query: any, attachment: ExerciseAttachment) {
+  const columns = attachmentColumns(attachment);
+  let q = query;
+  for (const [column, value] of Object.entries(columns)) {
+    q = value === null ? q.is(column, null) : q.eq(column, value);
+  }
+  return q;
+}
+
 /** Crée l'exercice (brouillon de travail) et sa première version, en statut brouillon. */
 export async function createExercise(input: {
   attachment: ExerciseAttachment;
@@ -27,10 +43,10 @@ export async function createExercise(input: {
 }): Promise<MutationResult> {
   const supabase = await createClient();
 
-  const { data: lastExercise, error: lastError } = await supabase
-    .from('exercises')
-    .select('display_order')
-    .match(attachmentColumns(input.attachment))
+  const { data: lastExercise, error: lastError } = await applyAttachmentFilter(
+    supabase.from('exercises').select('display_order'),
+    input.attachment
+  )
     .order('display_order', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -153,13 +169,13 @@ export async function moveExercise(input: {
 }): Promise<MutationResult> {
   const supabase = await createClient();
 
-  const { data: exercises, error } = await supabase
-    .from('exercises')
-    .select('id, display_order')
-    .match(attachmentColumns(input.attachment))
-    .order('display_order', { ascending: true });
+  const { data, error } = await applyAttachmentFilter(
+    supabase.from('exercises').select('id, display_order'),
+    input.attachment
+  ).order('display_order', { ascending: true });
   if (error) return { error: error.message };
-  if (!exercises) return { error: 'Exercice introuvable.' };
+  if (!data) return { error: 'Exercice introuvable.' };
+  const exercises = data as { id: string; display_order: number | null }[];
 
   const index = exercises.findIndex((e) => e.id === input.id);
   if (index === -1) return { error: 'Exercice introuvable.' };

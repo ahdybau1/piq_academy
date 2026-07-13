@@ -287,7 +287,7 @@ export default function ServicesStatusPage() {
 
       {/* Service Detail Dialog */}
       <Dialog open={!!selectedService} onOpenChange={() => setSelectedService(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedService?.type === 'payment' ? <DollarSign className="h-5 w-5" /> : <Brain className="h-5 w-5" />}
@@ -363,7 +363,7 @@ export default function ServicesStatusPage() {
 
       {/* Refresh Dialog */}
       <Dialog open={showRefreshDialog} onOpenChange={setShowRefreshDialog}>
-        <DialogContent className="max-w-sm">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Rafraîchir l&apos;état des services</DialogTitle>
             <DialogDescription>

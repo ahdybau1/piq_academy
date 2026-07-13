@@ -13,7 +13,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'isActive est requis.' }, { status: 400 });
   }
 
-  const result = await setNodeActive({ id, isActive: body.isActive });
+  const result = await setNodeActive({ id, isActive: body.isActive, adminId: guard.admin.id });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

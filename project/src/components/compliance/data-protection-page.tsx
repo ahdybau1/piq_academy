@@ -417,7 +417,7 @@ export default function DataProtectionPage() {
 
       {/* Detail Dialog */}
       <Dialog open={!!selectedRequest && !showProcessDialog && !showRejectDialog} onOpenChange={() => setSelectedRequest(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Détails de la demande</DialogTitle>
           </DialogHeader>

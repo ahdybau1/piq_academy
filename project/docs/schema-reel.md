@@ -126,7 +126,11 @@ Session unique stricte côté app élève — à ne pas confondre avec `auth.ses
 |---|---|---|---|---|
 | id | uuid | NO | gen_random_uuid() | — |
 | name | character varying | NO | — | — |
+| node_id | uuid | NO | — | academic_nodes.id |
 | created_at | timestamp with time zone | YES | now() | — |
+
+<!-- node_id ajouté 2026-07-09 : colonne réelle en base (confirmée via src/lib/content/queries.ts,
+     utilisée en production toute la session), absente par erreur de cette version du doc. -->
 
 ### subject_class_links
 | Colonne | Type | Nullable | Défaut | Référence |

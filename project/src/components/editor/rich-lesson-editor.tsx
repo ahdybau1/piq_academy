@@ -25,7 +25,7 @@ import { MathNode } from './math-node';
 import { MediaEmbedNode } from './media-embed-node';
 import { MediaPickerDialog } from './media-picker-dialog';
 import { FormulaDialog } from './formula-dialog';
-import type { MediaRow } from '@/lib/media/types';
+import type { MediaItem } from '@/lib/media/types';
 
 /** Doc Tiptap vide, utilisé pour les nouvelles leçons ou en secours si `content_json` est invalide. */
 export const EMPTY_LESSON_DOC: JSONContent = { type: 'doc', content: [{ type: 'paragraph' }] };
@@ -77,9 +77,12 @@ function ToolbarButton({
 export function RichLessonEditor({
   content,
   onChange,
+  classNodeId,
 }: {
   content: JSONContent;
   onChange: (doc: JSONContent) => void;
+  /** Un média inséré ici est toujours rattaché à cette classe/série (section 2.7). */
+  classNodeId: string;
 }) {
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [showFormula, setShowFormula] = useState(false);
@@ -104,7 +107,8 @@ export function RichLessonEditor({
     ],
     editorProps: {
       attributes: {
-        class: 'prose prose-sm dark:prose-invert max-w-none min-h-[200px] rounded-b-lg border border-t-0 border-border/50 bg-background px-4 py-3 focus:outline-none',
+        class:
+          'prose prose-sm dark:prose-invert w-full max-w-none min-h-[200px] break-words rounded-b-lg border border-t-0 border-border/50 bg-background px-4 py-3 focus:outline-none',
       },
     },
     onUpdate: ({ editor }) => onChange(editor.getJSON()),
@@ -112,7 +116,7 @@ export function RichLessonEditor({
 
   if (!editor) return null;
 
-  const insertMedia = (media: MediaRow) => {
+  const insertMedia = (media: MediaItem) => {
     editor
       .chain()
       .focus()
@@ -128,7 +132,7 @@ export function RichLessonEditor({
   };
 
   return (
-    <div>
+    <div className="w-full">
       <div className="flex flex-wrap items-center gap-0.5 rounded-t-lg border border-border/50 bg-muted/30 p-1.5">
         <ToolbarButton title="Gras" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
           <Bold className="h-4 w-4" />
@@ -178,7 +182,7 @@ export function RichLessonEditor({
 
       <EditorContent editor={editor} />
 
-      <MediaPickerDialog open={showMediaPicker} onOpenChange={setShowMediaPicker} onSelect={insertMedia} />
+      <MediaPickerDialog open={showMediaPicker} onOpenChange={setShowMediaPicker} onSelect={insertMedia} classNodeId={classNodeId} />
       <FormulaDialog
         open={showFormula}
         onOpenChange={setShowFormula}

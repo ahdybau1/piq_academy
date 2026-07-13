@@ -16,6 +16,7 @@ export async function createSubject(input: {
   name: string;
   nodeId: string;
   additionalClassNodeIds: string[];
+  adminId: string | null;
 }): Promise<MutationResult> {
   const name = input.name.trim();
   if (!name) return { error: 'Le nom de la matière est requis.' };
@@ -36,15 +37,61 @@ export async function createSubject(input: {
     if (linksError) return { error: linksError.message };
   }
 
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'create',
+    entity_type: 'subjects',
+    entity_id: subject.id,
+    before_json: null,
+    after_json: { name, node_id: input.nodeId },
+  });
+  if (auditError) return { error: auditError.message };
+
   return {};
 }
 
-export async function addSubjectClassLink(input: { subjectId: string; classNodeId: string }): Promise<MutationResult> {
+/** Modification d'une matière existante (section 2.1) — seul le nom est renommable ici ; le rattachement aux classes se gère via les liens (add/removeSubjectClassLink). */
+export async function updateSubject(input: { id: string; name: string; adminId: string | null }): Promise<MutationResult> {
+  const name = input.name.trim();
+  if (!name) return { error: 'Le nom de la matière est requis.' };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from('subjects').update({ name }).eq('id', input.id);
+  if (error) return { error: error.message };
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'update',
+    entity_type: 'subjects',
+    entity_id: input.id,
+    before_json: null,
+    after_json: { name },
+  });
+  if (auditError) return { error: auditError.message };
+
+  return {};
+}
+
+export async function addSubjectClassLink(input: { subjectId: string; classNodeId: string; adminId: string | null }): Promise<MutationResult> {
   const supabase = await createClient();
   const { error } = await supabase
     .from('subject_class_links')
     .insert({ subject_id: input.subjectId, class_node_id: input.classNodeId });
   if (error) return { error: error.message };
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'create',
+    entity_type: 'subject_class_links',
+    entity_id: input.subjectId,
+    before_json: null,
+    after_json: { class_node_id: input.classNodeId },
+  });
+  if (auditError) return { error: auditError.message };
+
   return {};
 }
 
@@ -53,7 +100,7 @@ export async function addSubjectClassLink(input: { subjectId: string; classNodeI
  * élèves perdent l'accès"). L'application de cette règle côté lecture élève est hors
  * périmètre — l'Application Élève n'existe pas encore dans ce dépôt.
  */
-export async function removeSubjectClassLink(input: { subjectId: string; classNodeId: string }): Promise<MutationResult> {
+export async function removeSubjectClassLink(input: { subjectId: string; classNodeId: string; adminId: string | null }): Promise<MutationResult> {
   const supabase = await createClient();
   const { error } = await supabase
     .from('subject_class_links')
@@ -61,6 +108,113 @@ export async function removeSubjectClassLink(input: { subjectId: string; classNo
     .eq('subject_id', input.subjectId)
     .eq('class_node_id', input.classNodeId);
   if (error) return { error: error.message };
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'delete',
+    entity_type: 'subject_class_links',
+    entity_id: input.subjectId,
+    before_json: { class_node_id: input.classNodeId },
+    after_json: null,
+  });
+  if (auditError) return { error: auditError.message };
+
+  return {};
+}
+
+/**
+ * Supprime une matière : bloque par défaut si des chapitres/classes liées/types de
+ * catalogue/exercices indépendants en dépendent encore (section 1.7), cascade en option
+ * explicite via `cascadeDeleteChapter`/`cascadeDeleteLesson` (définies plus bas, function
+ * declarations hissées — l'ordre dans le fichier n'a pas d'incidence).
+ */
+export async function deleteSubject(input: { id: string; cascade: boolean; adminId: string | null }): Promise<MutationResult> {
+  const admin = createAdminClient();
+
+  const [chapterRes, linkRes, catalogRes, exerciseRes] = await Promise.all([
+    admin.from('chapters').select('id', { count: 'exact', head: true }).eq('subject_id', input.id),
+    admin.from('subject_class_links').select('subject_id', { count: 'exact', head: true }).eq('subject_id', input.id),
+    admin.from('content_catalog').select('id', { count: 'exact', head: true }).eq('subject_id', input.id),
+    admin.from('exercises').select('id', { count: 'exact', head: true }).eq('subject_id', input.id).is('chapter_id', null),
+  ]);
+  if (chapterRes.error) return { error: chapterRes.error.message };
+  if (linkRes.error) return { error: linkRes.error.message };
+  if (catalogRes.error) return { error: catalogRes.error.message };
+  if (exerciseRes.error) return { error: exerciseRes.error.message };
+
+  const chapterCount = chapterRes.count ?? 0;
+  const linkCount = linkRes.count ?? 0;
+  const catalogCount = catalogRes.count ?? 0;
+  const exerciseCount = exerciseRes.count ?? 0;
+
+  if (!input.cascade && (chapterCount > 0 || linkCount > 0 || catalogCount > 0 || exerciseCount > 0)) {
+    const parts: string[] = [];
+    if (chapterCount > 0) parts.push(`${chapterCount} chapitre(s)`);
+    if (exerciseCount > 0) parts.push(`${exerciseCount} exercice(s) indépendant(s)`);
+    if (catalogCount > 0) parts.push(`${catalogCount} type(s) de catalogue`);
+    if (linkCount > 0) parts.push(`${linkCount} classe(s) liée(s)`);
+    return { error: `Cette matière a ${parts.join(', ')}. Confirmez pour tout supprimer.` };
+  }
+
+  const batchId = crypto.randomUUID();
+
+  const { data: chapters, error: chaptersError } = await admin.from('chapters').select('id').eq('subject_id', input.id);
+  if (chaptersError) return { error: chaptersError.message };
+  for (const chapter of chapters ?? []) {
+    const result = await cascadeDeleteChapter({ admin, batchId, chapterId: chapter.id, adminId: input.adminId });
+    if (result.error) return result;
+  }
+
+  const { data: independentExercises, error: indExError } = await admin
+    .from('exercises')
+    .select('*')
+    .eq('subject_id', input.id)
+    .is('chapter_id', null);
+  if (indExError) return { error: indExError.message };
+  if (independentExercises && independentExercises.length > 0) {
+    const trashResult = await trashRows({ batchId, tableName: 'exercises', rows: independentExercises, adminId: input.adminId });
+    if (trashResult.error) return trashResult;
+    const { error } = await admin.from('exercises').delete().eq('subject_id', input.id).is('chapter_id', null);
+    if (error) return { error: error.message };
+  }
+
+  const { data: links, error: linksFetchError } = await admin.from('subject_class_links').select('*').eq('subject_id', input.id);
+  if (linksFetchError) return { error: linksFetchError.message };
+  if (links && links.length > 0) {
+    const trashResult = await trashRows({ batchId, tableName: 'subject_class_links', rows: links, adminId: input.adminId });
+    if (trashResult.error) return trashResult;
+    const { error } = await admin.from('subject_class_links').delete().eq('subject_id', input.id);
+    if (error) return { error: error.message };
+  }
+
+  const { data: catalogEntries, error: catalogFetchError } = await admin.from('content_catalog').select('*').eq('subject_id', input.id);
+  if (catalogFetchError) return { error: catalogFetchError.message };
+  if (catalogEntries && catalogEntries.length > 0) {
+    const trashResult = await trashRows({ batchId, tableName: 'content_catalog', rows: catalogEntries, adminId: input.adminId });
+    if (trashResult.error) return trashResult;
+    const { error } = await admin.from('content_catalog').delete().eq('subject_id', input.id);
+    if (error) return { error: error.message };
+  }
+
+  const { data: subject, error: subjectError } = await admin.from('subjects').select('*').eq('id', input.id).maybeSingle();
+  if (subjectError) return { error: subjectError.message };
+  if (!subject) return { error: 'Matière introuvable.' };
+  const subjectTrash = await trashRows({ batchId, tableName: 'subjects', rows: [subject], adminId: input.adminId });
+  if (subjectTrash.error) return subjectTrash;
+  const { error } = await admin.from('subjects').delete().eq('id', input.id);
+  if (error) return { error: error.message };
+
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'delete',
+    entity_type: 'subjects',
+    entity_id: input.id,
+    before_json: subject,
+    after_json: null,
+  });
+  if (auditError) return { error: auditError.message };
+
   return {};
 }
 
@@ -74,6 +228,7 @@ export async function createChapter(input: {
   termId: string;
   title: string;
   introduction?: string;
+  adminId: string | null;
 }): Promise<MutationResult> {
   const title = input.title.trim();
   if (!input.subjectId) return { error: 'La matière est requise.' };
@@ -92,14 +247,30 @@ export async function createChapter(input: {
   if (lastError) return { error: lastError.message };
   const nextOrder = (lastChapter?.display_order ?? -1) + 1;
 
-  const { error } = await supabase.from('chapters').insert({
-    subject_id: input.subjectId,
-    term_id: input.termId,
-    title,
-    introduction: input.introduction?.trim() || null,
-    display_order: nextOrder,
-  });
+  const { data: chapter, error } = await supabase
+    .from('chapters')
+    .insert({
+      subject_id: input.subjectId,
+      term_id: input.termId,
+      title,
+      introduction: input.introduction?.trim() || null,
+      display_order: nextOrder,
+    })
+    .select('id')
+    .single();
   if (error) return { error: error.message };
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'create',
+    entity_type: 'chapters',
+    entity_id: chapter.id,
+    before_json: null,
+    after_json: { title, subject_id: input.subjectId, term_id: input.termId },
+  });
+  if (auditError) return { error: auditError.message };
+
   return {};
 }
 
@@ -109,6 +280,7 @@ export async function updateChapter(input: {
   title: string;
   introduction?: string;
   termId: string;
+  adminId: string | null;
 }): Promise<MutationResult> {
   const title = input.title.trim();
   if (!title) return { error: 'Le titre du chapitre est requis.' };
@@ -120,6 +292,18 @@ export async function updateChapter(input: {
     .update({ title, introduction: input.introduction?.trim() || null, term_id: input.termId })
     .eq('id', input.id);
   if (error) return { error: error.message };
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'update',
+    entity_type: 'chapters',
+    entity_id: input.id,
+    before_json: null,
+    after_json: { title, term_id: input.termId },
+  });
+  if (auditError) return { error: auditError.message };
+
   return {};
 }
 
@@ -159,12 +343,103 @@ export async function moveChapter(input: {
   return {};
 }
 
+/**
+ * Supprime un chapitre et cascade sur ses leçons (elles-mêmes cascadées vers leurs
+ * exercices), ses exercices de niveau chapitre et ses déblocages anticipés. Fonction
+ * interne réutilisée par `deleteChapter` et `deleteSubject`.
+ */
+async function cascadeDeleteChapter(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  batchId: string;
+  chapterId: string;
+  adminId: string | null;
+}): Promise<MutationResult> {
+  const { admin, batchId, chapterId, adminId } = input;
+
+  const { data: lessons, error: lessonsError } = await admin.from('lessons').select('id').eq('chapter_id', chapterId);
+  if (lessonsError) return { error: lessonsError.message };
+  for (const lesson of lessons ?? []) {
+    const result = await cascadeDeleteLesson({ admin, batchId, lessonId: lesson.id, adminId });
+    if (result.error) return result;
+  }
+
+  const { data: exercises, error: exercisesError } = await admin
+    .from('exercises')
+    .select('*')
+    .eq('chapter_id', chapterId)
+    .is('lesson_id', null);
+  if (exercisesError) return { error: exercisesError.message };
+  if (exercises && exercises.length > 0) {
+    const trashResult = await trashRows({ batchId, tableName: 'exercises', rows: exercises, adminId });
+    if (trashResult.error) return trashResult;
+    const { error } = await admin.from('exercises').delete().eq('chapter_id', chapterId).is('lesson_id', null);
+    if (error) return { error: error.message };
+  }
+
+  // chapter_unlocks n'est pas versionné en corbeille (même précédent que deleteChapterUnlock) — simple suppression.
+  const { error: unlocksError } = await admin.from('chapter_unlocks').delete().eq('chapter_id', chapterId);
+  if (unlocksError) return { error: unlocksError.message };
+
+  const { data: chapter, error: chapterError } = await admin.from('chapters').select('*').eq('id', chapterId).maybeSingle();
+  if (chapterError) return { error: chapterError.message };
+  if (chapter) {
+    const trashResult = await trashRows({ batchId, tableName: 'chapters', rows: [chapter], adminId });
+    if (trashResult.error) return trashResult;
+    const { error } = await admin.from('chapters').delete().eq('id', chapterId);
+    if (error) return { error: error.message };
+  }
+
+  return {};
+}
+
+export async function deleteChapter(input: { id: string; cascade: boolean; adminId: string | null }): Promise<MutationResult> {
+  const admin = createAdminClient();
+
+  const [lessonRes, exerciseRes, unlockRes] = await Promise.all([
+    admin.from('lessons').select('id', { count: 'exact', head: true }).eq('chapter_id', input.id),
+    admin.from('exercises').select('id', { count: 'exact', head: true }).eq('chapter_id', input.id).is('lesson_id', null),
+    admin.from('chapter_unlocks').select('id', { count: 'exact', head: true }).eq('chapter_id', input.id),
+  ]);
+  if (lessonRes.error) return { error: lessonRes.error.message };
+  if (exerciseRes.error) return { error: exerciseRes.error.message };
+  if (unlockRes.error) return { error: unlockRes.error.message };
+
+  const lessonCount = lessonRes.count ?? 0;
+  const exerciseCount = exerciseRes.count ?? 0;
+  const unlockCount = unlockRes.count ?? 0;
+
+  if (!input.cascade && (lessonCount > 0 || exerciseCount > 0 || unlockCount > 0)) {
+    const parts: string[] = [];
+    if (lessonCount > 0) parts.push(`${lessonCount} leçon(s)`);
+    if (exerciseCount > 0) parts.push(`${exerciseCount} exercice(s)`);
+    if (unlockCount > 0) parts.push(`${unlockCount} déblocage(s) anticipé(s)`);
+    return { error: `Ce chapitre a ${parts.join(', ')}. Confirmez pour tout supprimer.` };
+  }
+
+  const batchId = crypto.randomUUID();
+  const result = await cascadeDeleteChapter({ admin, batchId, chapterId: input.id, adminId: input.adminId });
+  if (result.error) return result;
+
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'delete',
+    entity_type: 'chapters',
+    entity_id: input.id,
+    before_json: null,
+    after_json: null,
+  });
+  if (auditError) return { error: auditError.message };
+
+  return {};
+}
+
 export async function createTerm(input: {
   countryId: string;
   name: string;
   schoolYear: string;
   startDate: string;
   endDate: string;
+  adminId: string | null;
 }): Promise<MutationResult> {
   const name = input.name.trim();
   const schoolYear = input.schoolYear.trim();
@@ -174,14 +449,33 @@ export async function createTerm(input: {
   if (!input.startDate || !input.endDate) return { error: 'Les dates de début et de fin sont requises.' };
 
   const supabase = await createClient();
-  const { error } = await supabase.from('terms').insert({
-    country_id: input.countryId,
-    name,
-    school_year: schoolYear,
-    start_date: input.startDate,
-    end_date: input.endDate,
+  const { data: term, error } = await supabase
+    .from('terms')
+    .insert({
+      country_id: input.countryId,
+      name,
+      school_year: schoolYear,
+      start_date: input.startDate,
+      end_date: input.endDate,
+    })
+    .select('id')
+    .single();
+  if (error) {
+    if (error.code === '23505') return { error: `Un trimestre « ${name} » existe déjà pour l'année ${schoolYear} dans ce pays.` };
+    return { error: error.message };
+  }
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'create',
+    entity_type: 'terms',
+    entity_id: term.id,
+    before_json: null,
+    after_json: { name, school_year: schoolYear, start_date: input.startDate, end_date: input.endDate },
   });
-  if (error) return { error: error.message };
+  if (auditError) return { error: auditError.message };
+
   return {};
 }
 
@@ -191,6 +485,7 @@ export async function updateTerm(input: {
   schoolYear: string;
   startDate: string;
   endDate: string;
+  adminId: string | null;
 }): Promise<MutationResult> {
   const name = input.name.trim();
   const schoolYear = input.schoolYear.trim();
@@ -203,7 +498,22 @@ export async function updateTerm(input: {
     .from('terms')
     .update({ name, school_year: schoolYear, start_date: input.startDate, end_date: input.endDate })
     .eq('id', input.id);
-  if (error) return { error: error.message };
+  if (error) {
+    if (error.code === '23505') return { error: `Un trimestre « ${name} » existe déjà pour l'année ${schoolYear} dans ce pays.` };
+    return { error: error.message };
+  }
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'update',
+    entity_type: 'terms',
+    entity_id: input.id,
+    before_json: null,
+    after_json: { name, school_year: schoolYear, start_date: input.startDate, end_date: input.endDate },
+  });
+  if (auditError) return { error: auditError.message };
+
   return {};
 }
 
@@ -254,6 +564,29 @@ export async function createCatalogEntry(input: {
     entity_id: entry.id,
     before_json: null,
     after_json: { subject_id: input.subjectId, element_type: elementType },
+  });
+  if (auditError) return { error: auditError.message };
+
+  return {};
+}
+
+/** Renomme un type d'élément de catalogue (section 16.0 : "créer/modifier un type d'élément"). */
+export async function updateCatalogEntry(input: { id: string; elementType: string; adminId: string | null }): Promise<MutationResult> {
+  const elementType = input.elementType.trim();
+  if (!elementType) return { error: "Le nom du type d'élément est requis." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from('content_catalog').update({ element_type: elementType }).eq('id', input.id);
+  if (error) return { error: error.message };
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'update',
+    entity_type: 'content_catalog',
+    entity_id: input.id,
+    before_json: null,
+    after_json: { element_type: elementType },
   });
   if (auditError) return { error: auditError.message };
 
@@ -452,9 +785,20 @@ export async function createLesson(input: {
 
   const supabase = await createClient();
   const contentJson = input.contentJson;
+
+  const { data: lastLesson, error: lastError } = await supabase
+    .from('lessons')
+    .select('display_order')
+    .eq('chapter_id', input.chapterId)
+    .order('display_order', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (lastError) return { error: lastError.message };
+  const nextOrder = (lastLesson?.display_order ?? -1) + 1;
+
   const { data: lesson, error } = await supabase
     .from('lessons')
-    .insert({ chapter_id: input.chapterId, title, content_json: contentJson, catalog_id: input.catalogId })
+    .insert({ chapter_id: input.chapterId, title, content_json: contentJson, catalog_id: input.catalogId, display_order: nextOrder })
     .select('id')
     .single();
   if (error) return { error: error.message };
@@ -543,6 +887,108 @@ export async function updateLesson(input: {
   });
   if (auditError) return { error: auditError.message };
 
+  return {};
+}
+
+/**
+ * Supprime une leçon et cascade sur ses exercices rattachés + son historique de versions
+ * (section 1.7 : blocage par défaut, cascade en option explicite). Fonction interne
+ * réutilisée par `deleteLesson`, `cascadeDeleteChapter` et `deleteSubject`.
+ */
+async function cascadeDeleteLesson(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  batchId: string;
+  lessonId: string;
+  adminId: string | null;
+}): Promise<MutationResult> {
+  const { admin, batchId, lessonId, adminId } = input;
+
+  const { data: exercises, error: exercisesError } = await admin.from('exercises').select('*').eq('lesson_id', lessonId);
+  if (exercisesError) return { error: exercisesError.message };
+  if (exercises && exercises.length > 0) {
+    const trashResult = await trashRows({ batchId, tableName: 'exercises', rows: exercises, adminId });
+    if (trashResult.error) return trashResult;
+    const { error } = await admin.from('exercises').delete().eq('lesson_id', lessonId);
+    if (error) return { error: error.message };
+  }
+
+  const { data: versions, error: versionsError } = await admin.from('content_versions').select('*').eq('content_id', lessonId);
+  if (versionsError) return { error: versionsError.message };
+  if (versions && versions.length > 0) {
+    const trashResult = await trashRows({ batchId, tableName: 'content_versions', rows: versions, adminId });
+    if (trashResult.error) return trashResult;
+    const { error } = await admin.from('content_versions').delete().eq('content_id', lessonId);
+    if (error) return { error: error.message };
+  }
+
+  const { data: lesson, error: lessonError } = await admin.from('lessons').select('*').eq('id', lessonId).maybeSingle();
+  if (lessonError) return { error: lessonError.message };
+  if (lesson) {
+    const trashResult = await trashRows({ batchId, tableName: 'lessons', rows: [lesson], adminId });
+    if (trashResult.error) return trashResult;
+    const { error } = await admin.from('lessons').delete().eq('id', lessonId);
+    if (error) return { error: error.message };
+  }
+
+  return {};
+}
+
+export async function deleteLesson(input: { id: string; cascade: boolean; adminId: string | null }): Promise<MutationResult> {
+  const admin = createAdminClient();
+
+  const { count: exerciseCount, error: countError } = await admin
+    .from('exercises')
+    .select('id', { count: 'exact', head: true })
+    .eq('lesson_id', input.id);
+  if (countError) return { error: countError.message };
+
+  if (!input.cascade && (exerciseCount ?? 0) > 0) {
+    return { error: `Cette leçon a ${exerciseCount} exercice(s) rattaché(s). Confirmez pour tout supprimer.` };
+  }
+
+  const batchId = crypto.randomUUID();
+  const result = await cascadeDeleteLesson({ admin, batchId, lessonId: input.id, adminId: input.adminId });
+  if (result.error) return result;
+
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'delete',
+    entity_type: 'lessons',
+    entity_id: input.id,
+    before_json: null,
+    after_json: null,
+  });
+  if (auditError) return { error: auditError.message };
+
+  return {};
+}
+
+/** Réordonnancement par échange de position, même mécanisme que `moveChapter`/`moveExercise`. */
+export async function moveLesson(input: { id: string; direction: 'up' | 'down'; chapterId: string }): Promise<MutationResult> {
+  const supabase = await createClient();
+
+  const { data: lessons, error } = await supabase
+    .from('lessons')
+    .select('id, display_order')
+    .eq('chapter_id', input.chapterId)
+    .order('display_order', { ascending: true });
+  if (error) return { error: error.message };
+  if (!lessons) return { error: 'Leçon introuvable.' };
+
+  const index = lessons.findIndex((l) => l.id === input.id);
+  if (index === -1) return { error: 'Leçon introuvable.' };
+  const swapIndex = input.direction === 'up' ? index - 1 : index + 1;
+  if (swapIndex < 0 || swapIndex >= lessons.length) return {}; // déjà en bout de liste, no-op
+
+  const current = lessons[index];
+  const swapWith = lessons[swapIndex];
+
+  const [{ error: e1 }, { error: e2 }] = await Promise.all([
+    supabase.from('lessons').update({ display_order: swapWith.display_order }).eq('id', current.id),
+    supabase.from('lessons').update({ display_order: current.display_order }).eq('id', swapWith.id),
+  ]);
+  if (e1) return { error: e1.message };
+  if (e2) return { error: e2.message };
   return {};
 }
 
@@ -638,6 +1084,16 @@ async function reviewQueueEntry(input: {
         .eq('id', version.id);
       if (updateVersionError) return { error: updateVersionError.message };
     }
+  }
+
+  if (entry.content_type === 'establishment_paper') {
+    // Pas de content_versions ici : une épreuve d'établissement n'a pas de contenu JSON
+    // structuré à versionner (juste des documents), le statut vit directement sur la ligne.
+    const { error: updatePaperError } = await supabase
+      .from('establishment_papers')
+      .update({ status: input.newStatus })
+      .eq('id', entry.content_id);
+    if (updatePaperError) return { error: updatePaperError.message };
   }
 
   const { error: updateQueueError } = await supabase

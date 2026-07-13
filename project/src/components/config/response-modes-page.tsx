@@ -236,7 +236,7 @@ export default function ResponseModesPage() {
 
       {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {selectedMode ? 'Modifier la configuration' : 'Nouvelle configuration'}

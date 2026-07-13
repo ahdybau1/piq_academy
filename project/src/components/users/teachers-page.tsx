@@ -282,7 +282,7 @@ export default function TeachersPage() {
 
       {/* Reject dialog */}
       <Dialog open={!!rejectTarget} onOpenChange={() => setRejectTarget(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <XCircle className="h-5 w-5 text-destructive" />Rejeter la demande

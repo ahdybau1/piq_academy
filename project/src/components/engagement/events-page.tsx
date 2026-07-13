@@ -115,7 +115,7 @@ export default function EventsPage() {
         </motion.div>
       </div>
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader><DialogTitle>Créer un événement</DialogTitle><DialogDescription>Configurez un nouvel événement (examen blanc ou olympiade).</DialogDescription></DialogHeader>
           <div className="grid gap-3 py-2">
             <div className="grid grid-cols-2 gap-3">

@@ -276,7 +276,7 @@ export function SubscriptionsPageView({
                   <div className="mb-3 flex items-center justify-between">
                     <h4 className="font-semibold capitalize text-foreground">{tier.name}</h4>
                     <span className={cn('rounded-full px-2.5 py-0.5 text-[11px] font-bold', accent.badge)}>
-                      {tier.price.toLocaleString()} FCFA
+                      {tier.price.toLocaleString('fr-FR')} FCFA
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">

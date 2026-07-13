@@ -1,22 +1,28 @@
 'use client';
 
-import React, { useEffect, useState, useTransition } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Tags, Plus, Trash2, ChevronRight, Home, ArrowLeft, Tag, Copy, AlertTriangle } from 'lucide-react';
+import { Tags, Plus, Trash2, ChevronRight, Home, ArrowLeft, Tag, Copy, AlertTriangle, Pencil, Check, X as XIcon, Search } from 'lucide-react';
 import {
   fetchCatalog,
   createCatalogEntry,
+  updateCatalogEntry,
   setCatalogEntryActive,
   deleteCatalogEntry,
   loadCatalogTemplate,
   duplicateCatalogToSubject,
+  fetchSubjectsForClass,
 } from '@/lib/content/api-client';
+import { fetchAcademicNodes } from '@/lib/academic/api-client';
+import { useWorkingClass } from '@/lib/working-class-context';
 import { CATALOG_TEMPLATES } from '@/lib/content/constants';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { HierarchicalNodeSelect } from './hierarchical-node-select';
 import type { SubjectRow, CatalogEntryRow } from '@/lib/content/types';
+import type { AcademicNodeRow } from '@/lib/academic/types';
 import { cn } from '@/lib/utils';
 
 type Dir = 'forward' | 'back';
@@ -38,8 +44,8 @@ const rowItem: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.26, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } },
 };
 
-export function CatalogPageView({ initialSubjects }: { initialSubjects: SubjectRow[] }) {
-  const [, startTransition] = useTransition();
+export function CatalogPageView({ initialSubjects, countryId }: { initialSubjects: SubjectRow[]; countryId: string | null }) {
+  const [isPending, startTransition] = useTransition();
 
   const [selected, setSelected] = useState<SubjectRow | null>(null);
   const [dir, setDir] = useState<Dir>('forward');
@@ -48,6 +54,42 @@ export function CatalogPageView({ initialSubjects }: { initialSubjects: SubjectR
   const [error, setError] = useState<string | null>(null);
   const [pendingCascadeId, setPendingCascadeId] = useState<string | null>(null);
   const [duplicateTargetId, setDuplicateTargetId] = useState('');
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editingEntryValue, setEditingEntryValue] = useState('');
+  const [subjectSearch, setSubjectSearch] = useState('');
+
+  const [academicNodes, setAcademicNodes] = useState<AcademicNodeRow[] | null>(null);
+  useEffect(() => {
+    fetchAcademicNodes(countryId ?? undefined).then(setAcademicNodes).catch((e) => setError(e.message));
+  }, [countryId]);
+  const nodeById = useMemo(() => new Map((academicNodes ?? []).map((n) => [n.id, n])), [academicNodes]);
+
+  // Filtre par classe/série : sans lui, des matières de même nom pour des classes
+  // différentes (ex. "Mathématiques" en Première C et en Première D, contenus distincts)
+  // se retrouvent mélangées dans une liste plate sans distinction claire.
+  // Préremplit depuis la « classe de travail » du header, resynchronisé si elle change.
+  const { workingClassNodeId } = useWorkingClass();
+  const [filterClassNodeId, setFilterClassNodeId] = useState(workingClassNodeId ?? '');
+  const [classScopedSubjects, setClassScopedSubjects] = useState<SubjectRow[]>([]);
+  const [prevFilterClassNodeId, setPrevFilterClassNodeId] = useState(filterClassNodeId);
+  if (filterClassNodeId !== prevFilterClassNodeId) {
+    setPrevFilterClassNodeId(filterClassNodeId);
+    if (!filterClassNodeId) setClassScopedSubjects([]);
+  }
+  const [prevWorkingClassNodeId, setPrevWorkingClassNodeId] = useState(workingClassNodeId);
+  if (workingClassNodeId !== prevWorkingClassNodeId) {
+    setPrevWorkingClassNodeId(workingClassNodeId);
+    setFilterClassNodeId(workingClassNodeId ?? '');
+  }
+  useEffect(() => {
+    if (!filterClassNodeId) return;
+    fetchSubjectsForClass(filterClassNodeId).then(setClassScopedSubjects).catch((e) => setError(e.message));
+  }, [filterClassNodeId]);
+
+  const subjectsInScope = filterClassNodeId ? classScopedSubjects : initialSubjects;
+  const filteredSubjects = subjectSearch
+    ? subjectsInScope.filter((s) => s.name.toLowerCase().includes(subjectSearch.toLowerCase()))
+    : subjectsInScope;
 
   const refreshEntries = (id: string) => fetchCatalog(id).then(setEntries).catch((e) => setError(e.message));
 
@@ -62,21 +104,31 @@ export function CatalogPageView({ initialSubjects }: { initialSubjects: SubjectR
     setEntries([]);
     setPendingCascadeId(null);
     setDuplicateTargetId('');
+    setEditingEntryId(null);
   };
   const closeSubject = () => {
     setDir('back');
     setSelected(null);
   };
 
+  // Garde synchrone contre le double-clic (isPending seul n'empêche pas une ré-entrée
+  // rapide, ex. double-clic créant deux entrées identiques).
+  const isRunningRef = useRef(false);
   const runAction = (fn: () => Promise<{ error?: string }>, onSuccess?: () => void) => {
+    if (isRunningRef.current) return;
+    isRunningRef.current = true;
     setError(null);
     startTransition(async () => {
-      const result = await fn();
-      if (result.error) {
-        setError(result.error);
-        return;
+      try {
+        const result = await fn();
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+        onSuccess?.();
+      } finally {
+        isRunningRef.current = false;
       }
-      onSuccess?.();
     });
   };
 
@@ -101,25 +153,46 @@ export function CatalogPageView({ initialSubjects }: { initialSubjects: SubjectR
         </div>
       </div>
 
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="relative max-w-xs flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+          <Input className="pl-9" placeholder="Rechercher une matière…" value={subjectSearch} onChange={(e) => setSubjectSearch(e.target.value)} />
+        </div>
+        {countryId && (
+          <HierarchicalNodeSelect nodes={academicNodes ?? []} countryId={countryId} value={filterClassNodeId} onChange={setFilterClassNodeId} compact />
+        )}
+        {filterClassNodeId && (
+          <button onClick={() => setFilterClassNodeId('')} className="text-xs font-medium text-muted-foreground hover:text-foreground hover:underline">
+            Toutes les classes
+          </button>
+        )}
+      </div>
+
       <motion.div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" variants={stagger} initial="hidden" animate="show">
-        {initialSubjects.map((s) => (
-          <motion.button
-            key={s.id}
-            variants={rowItem}
-            onClick={() => openSubject(s)}
-            className="group flex items-center gap-4 rounded-2xl border border-border/40 bg-card p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-lg"
-          >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/8">
-              <Tags className="h-5 w-5 text-primary/80" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold text-foreground transition-colors group-hover:text-primary">{s.name}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">Types d&apos;éléments →</p>
-            </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/30 group-hover:text-primary/50" />
-          </motion.button>
-        ))}
-        {initialSubjects.length === 0 && (
+        {filteredSubjects.map((s) => {
+          const className = nodeById.get(s.node_id)?.name ?? 'Classe supprimée';
+          return (
+            <motion.button
+              key={s.id}
+              variants={rowItem}
+              onClick={() => openSubject(s)}
+              className="group flex items-center gap-4 rounded-2xl border border-border/40 bg-card p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-lg"
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/8">
+                <Tags className="h-5 w-5 text-primary/80" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-foreground transition-colors group-hover:text-primary">{s.name}</p>
+                <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                  <Tag className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{className}</span>
+                </p>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/30 group-hover:text-primary/50" />
+            </motion.button>
+          );
+        })}
+        {filteredSubjects.length === 0 && (
           <div className="col-span-full py-16 text-center text-sm text-muted-foreground/50">Aucune matière disponible.</div>
         )}
       </motion.div>
@@ -202,9 +275,52 @@ export function CatalogPageView({ initialSubjects }: { initialSubjects: SubjectR
             <div key={entry.id}>
               <div className="flex items-center gap-4 px-6 py-3.5">
                 <Tag className="h-4 w-4 shrink-0 text-muted-foreground/50" />
-                <span className={cn('flex-1 text-sm font-medium', !entry.is_active && 'text-muted-foreground line-through')}>
-                  {entry.element_type}
-                </span>
+                {editingEntryId === entry.id ? (
+                  <div className="flex flex-1 items-center gap-1.5">
+                    <Input
+                      autoFocus
+                      className="h-8 flex-1"
+                      value={editingEntryValue}
+                      onChange={(e) => setEditingEntryValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && editingEntryValue.trim())
+                          runAction(
+                            () => updateCatalogEntry({ id: entry.id, elementType: editingEntryValue }),
+                            () => {
+                              setEditingEntryId(null);
+                              refreshEntries(selected.id);
+                            }
+                          );
+                        if (e.key === 'Escape') setEditingEntryId(null);
+                      }}
+                    />
+                    <button
+                      onClick={() =>
+                        runAction(
+                          () => updateCatalogEntry({ id: entry.id, elementType: editingEntryValue }),
+                          () => {
+                            setEditingEntryId(null);
+                            refreshEntries(selected.id);
+                          }
+                        )
+                      }
+                      disabled={isPending || !editingEntryValue.trim()}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-emerald-600 transition-colors hover:bg-emerald-50 disabled:opacity-30 dark:hover:bg-emerald-950/20"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setEditingEntryId(null)}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted"
+                    >
+                      <XIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <span className={cn('flex-1 text-sm font-medium', !entry.is_active && 'text-muted-foreground line-through')}>
+                    {entry.element_type}
+                  </span>
+                )}
                 <span
                   className={cn(
                     'rounded-full px-2 py-0.5 text-[11px] font-semibold',
@@ -219,6 +335,15 @@ export function CatalogPageView({ initialSubjects }: { initialSubjects: SubjectR
                   checked={entry.is_active}
                   onCheckedChange={(v) => runAction(() => setCatalogEntryActive({ id: entry.id, isActive: v }), () => refreshEntries(selected.id))}
                 />
+                <button
+                  onClick={() => {
+                    setEditingEntryId(entry.id);
+                    setEditingEntryValue(entry.element_type);
+                  }}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
                 <button
                   onClick={() => {
                     setError(null);
@@ -295,7 +420,7 @@ export function CatalogPageView({ initialSubjects }: { initialSubjects: SubjectR
           </Select>
           <Button
             variant="outline"
-            disabled={!duplicateTargetId}
+            disabled={isPending || !duplicateTargetId}
             onClick={() =>
               runAction(
                 () => duplicateCatalogToSubject({ sourceSubjectId: selected.id, targetSubjectId: duplicateTargetId }),
@@ -336,7 +461,7 @@ export function CatalogPageView({ initialSubjects }: { initialSubjects: SubjectR
               }
             )
           }
-          disabled={!newType.trim()}
+          disabled={isPending || !newType.trim()}
         >
           <Plus className="h-4 w-4" />
           Ajouter

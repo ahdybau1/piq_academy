@@ -38,7 +38,7 @@ export function FormulaDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Formule mathématique / scientifique</DialogTitle>
           <DialogDescription>Syntaxe LaTeX — ex. {'x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}'}</DialogDescription>

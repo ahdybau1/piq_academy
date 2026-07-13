@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useTransition } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +25,7 @@ import {
   Trash2,
   Copy,
   MoveRight,
+  GitMerge,
   History,
   ToggleLeft,
   ToggleRight,
@@ -38,6 +39,13 @@ import {
   Search,
   AlertTriangle,
   XCircle,
+  Users,
+  BookOpen,
+  Wallet,
+  FileText,
+  MessageSquare,
+  Share2,
+  Languages,
 } from 'lucide-react';
 import {
   createNode,
@@ -45,9 +53,12 @@ import {
   setNodeActive,
   deleteNode,
   moveNode,
+  mergeNode,
   duplicateNode,
   fetchDependencies,
   fetchHistory,
+  fetchCountrySettings,
+  upsertCountrySettings,
 } from '@/lib/academic/api-client';
 import {
   ROOT_NODE_TYPE,
@@ -221,19 +232,41 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
   const [showCreateChild, setShowCreateChild] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showMove, setShowMove] = useState(false);
+  const [showMerge, setShowMerge] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState<AcademicNodeType>('');
   const [editName, setEditName] = useState('');
+  // Paramètres pays (section 1.1) — uniquement pertinents pour un nœud de type `pays`.
+  const [editOfficialLanguages, setEditOfficialLanguages] = useState('');
+  const [editCurrency, setEditCurrency] = useState('');
+  const [editSchoolYearStart, setEditSchoolYearStart] = useState('');
+  const [editSchoolYearEnd, setEditSchoolYearEnd] = useState('');
   const countryCount = tree.length;
   const nodeCount = allNodes.length;
   const maxDepth = useMemo(() => treeDepth(tree), [tree]);
   const [moveTargetId, setMoveTargetId] = useState<string>('');
+  const [mergeTargetId, setMergeTargetId] = useState<string>('');
   const [cascadeDelete, setCascadeDelete] = useState(false);
   const [dependencies, setDependencies] = useState<AcademicNodeDependencies | null>(null);
   const [history, setHistory] = useState<AuditLogEntry[] | null>(null);
+
+  // Aperçu du contenu rattaché, toujours visible dès qu'un nœud est sélectionné — avant
+  // cela, ces chiffres n'apparaissaient que dans la boîte de confirmation de suppression,
+  // ce qui rendait impossible de comprendre ce qu'un nœud contient sans essayer de le
+  // supprimer.
+  const [nodeDependencies, setNodeDependencies] = useState<AcademicNodeDependencies | null>(null);
+  const [prevSelectedId, setPrevSelectedId] = useState<string | null>(selectedId);
+  if (selectedId !== prevSelectedId) {
+    setPrevSelectedId(selectedId);
+    setNodeDependencies(null);
+  }
+  useEffect(() => {
+    if (!selectedId) return;
+    fetchDependencies(selectedId).then(setNodeDependencies).catch(() => setNodeDependencies(null));
+  }, [selectedId]);
 
   const filteredNodes = searchQuery
     ? allNodes.filter((n) => n.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -243,16 +276,26 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
     router.refresh();
   };
 
+  // `isPending` seul ne suffit pas à empêcher un double-clic (ex. double-clic rapide sur
+  // "Créer" crée deux nœuds identiques) : un ref, synchrone, est la seule garde fiable
+  // contre une ré-entrée pendant qu'une action est déjà en cours.
+  const isRunningRef = useRef(false);
   const runAction = (fn: () => Promise<{ error?: string }>, onSuccess?: () => void) => {
+    if (isRunningRef.current) return;
+    isRunningRef.current = true;
     setActionError(null);
     startTransition(async () => {
-      const result = await fn();
-      if (result.error) {
-        setActionError(result.error);
-        return;
+      try {
+        const result = await fn();
+        if (result.error) {
+          setActionError(result.error);
+          return;
+        }
+        onSuccess?.();
+        refresh();
+      } finally {
+        isRunningRef.current = false;
       }
-      onSuccess?.();
-      refresh();
     });
   };
 
@@ -261,6 +304,12 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
   // à n'importe quelle profondeur, avec un type de nœud personnalisé.
   const moveTargetOptions = selectedNode
     ? allNodes.filter((n) => n.id !== selectedNode.id && !flattenTree([selectedNode]).some((d) => d.id === n.id))
+    : [];
+
+  // Fusion (section 1.4) : uniquement entre nœuds de même type — fusionner une classe avec
+  // une série n'aurait pas de sens.
+  const mergeTargetOptions = selectedNode
+    ? allNodes.filter((n) => n.id !== selectedNode.id && n.node_type === selectedNode.node_type)
     : [];
 
   const openCreateChild = () => {
@@ -273,11 +322,41 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
     setShowCreateChild(true);
   };
 
-  const openEdit = () => {
+  const openEdit = async () => {
     if (!selectedNode) return;
     setEditName(selectedNode.name);
     setActionError(null);
+    setEditOfficialLanguages('');
+    setEditCurrency('');
+    setEditSchoolYearStart('');
+    setEditSchoolYearEnd('');
     setShowEdit(true);
+    if (selectedNode.node_type === ROOT_NODE_TYPE) {
+      const settings = await fetchCountrySettings(selectedNode.id);
+      if (settings) {
+        setEditOfficialLanguages(settings.official_languages.join(', '));
+        setEditCurrency(settings.currency ?? '');
+        setEditSchoolYearStart(settings.school_year_start_date ?? '');
+        setEditSchoolYearEnd(settings.school_year_end_date ?? '');
+      }
+    }
+  };
+
+  const saveEdit = async (): Promise<{ error?: string }> => {
+    if (!selectedNode) return { error: 'Nœud introuvable.' };
+    const nameResult = await updateNode({ id: selectedNode.id, name: editName });
+    if (nameResult.error) return nameResult;
+    if (selectedNode.node_type !== ROOT_NODE_TYPE) return {};
+    return upsertCountrySettings({
+      countryId: selectedNode.id,
+      officialLanguages: editOfficialLanguages
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+      currency: editCurrency.trim() || null,
+      schoolYearStartDate: editSchoolYearStart || null,
+      schoolYearEndDate: editSchoolYearEnd || null,
+    });
   };
 
   const openMove = () => {
@@ -293,6 +372,16 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
     setActionError(null);
     setDependencies(null);
     setShowDelete(true);
+    const deps = await fetchDependencies(selectedNode.id);
+    setDependencies(deps);
+  };
+
+  const openMerge = async () => {
+    if (!selectedNode) return;
+    setMergeTargetId('');
+    setActionError(null);
+    setDependencies(null);
+    setShowMerge(true);
     const deps = await fetchDependencies(selectedNode.id);
     setDependencies(deps);
   };
@@ -496,6 +585,43 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
                 )}
 
                 <div className="space-y-2 border-t border-border/50 pt-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Contenu rattaché</p>
+                  {nodeDependencies === null ? (
+                    <p className="text-xs text-muted-foreground">Chargement...</p>
+                  ) : (
+                    (() => {
+                      const stats: { icon: React.ReactNode; label: string; count: number }[] = [
+                        { icon: <BookOpen className="h-3.5 w-3.5" />, label: 'Matière(s) rattachée(s)', count: nodeDependencies.linkedSubjectCount },
+                        { icon: <Users className="h-3.5 w-3.5" />, label: 'Profil(s) élève actif(s)', count: nodeDependencies.activeProfileCount },
+                        { icon: <Wallet className="h-3.5 w-3.5" />, label: "Palier(s) d'abonnement", count: nodeDependencies.subscriptionTierCount },
+                        { icon: <FileText className="h-3.5 w-3.5" />, label: 'Examen(s) officiel(s) lié(s)', count: nodeDependencies.officialExamCount },
+                        { icon: <FileText className="h-3.5 w-3.5" />, label: "Épreuve(s) d'établissement", count: nodeDependencies.establishmentPaperCount },
+                        { icon: <MessageSquare className="h-3.5 w-3.5" />, label: 'Sujet(s) de forum', count: nodeDependencies.forumThreadCount },
+                        { icon: <Share2 className="h-3.5 w-3.5" />, label: 'Communauté(s) WhatsApp', count: nodeDependencies.whatsappCommunityCount },
+                        { icon: <Languages className="h-3.5 w-3.5" />, label: 'Traduction(s) associée(s)', count: nodeDependencies.contentTranslationClassCount },
+                      ];
+                      const nonZero = stats.filter((s) => s.count > 0);
+                      if (nonZero.length === 0) {
+                        return <p className="text-xs text-muted-foreground/60">Rien de rattaché à ce nœud pour l&apos;instant.</p>;
+                      }
+                      return (
+                        <ul className="space-y-1.5">
+                          {nonZero.map((s) => (
+                            <li key={s.label} className="flex items-center justify-between text-xs">
+                              <span className="flex items-center gap-1.5 text-muted-foreground">
+                                {s.icon}
+                                {s.label}
+                              </span>
+                              <span className="font-semibold text-foreground">{s.count}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      );
+                    })()
+                  )}
+                </div>
+
+                <div className="space-y-2 border-t border-border/50 pt-4">
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Actions</p>
                   <div className="grid grid-cols-2 gap-2">
                     <Button variant="outline" size="sm" className="h-8 text-xs" onClick={openEdit} disabled={isPending}>
@@ -526,7 +652,17 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
                       <MoveRight className="mr-1.5 h-3.5 w-3.5" />
                       Déplacer
                     </Button>
-                    <Button variant="outline" size="sm" className="col-span-2 h-8 text-xs" onClick={openHistory}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={openMerge}
+                      disabled={isPending || selectedNode.node_type === ROOT_NODE_TYPE || mergeTargetOptions.length === 0}
+                    >
+                      <GitMerge className="mr-1.5 h-3.5 w-3.5" />
+                      Fusionner
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={openHistory}>
                       <History className="mr-1.5 h-3.5 w-3.5" />
                       Historique
                     </Button>
@@ -679,6 +815,39 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
               <Label htmlFor="edit-name">Nom</Label>
               <Input id="edit-name" value={editName} onChange={(e) => setEditName(e.target.value)} />
             </div>
+            {selectedNode?.node_type === ROOT_NODE_TYPE && (
+              <>
+                <div className="space-y-2 border-t border-border/50 pt-4">
+                  <Label htmlFor="edit-languages">Langues officielles</Label>
+                  <Input
+                    id="edit-languages"
+                    value={editOfficialLanguages}
+                    onChange={(e) => setEditOfficialLanguages(e.target.value)}
+                    placeholder="Ex: Français, Anglais"
+                  />
+                  <p className="text-xs text-muted-foreground">Séparées par des virgules.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-currency">Devise</Label>
+                  <Input id="edit-currency" value={editCurrency} onChange={(e) => setEditCurrency(e.target.value)} placeholder="Ex: FCFA" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-year-start">Début année scolaire</Label>
+                    <Input
+                      id="edit-year-start"
+                      type="date"
+                      value={editSchoolYearStart}
+                      onChange={(e) => setEditSchoolYearStart(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-year-end">Fin année scolaire</Label>
+                    <Input id="edit-year-end" type="date" value={editSchoolYearEnd} onChange={(e) => setEditSchoolYearEnd(e.target.value)} />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEdit(false)}>
@@ -686,13 +855,7 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
             </Button>
             <Button
               disabled={isPending || !editName.trim() || !selectedNode}
-              onClick={() =>
-                selectedNode &&
-                runAction(
-                  () => updateNode({ id: selectedNode.id, name: editName }),
-                  () => setShowEdit(false)
-                )
-              }
+              onClick={() => runAction(saveEdit, () => setShowEdit(false))}
             >
               Enregistrer
             </Button>
@@ -745,6 +908,80 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
         </DialogContent>
       </Dialog>
 
+      {/* Fusionner */}
+      <Dialog open={showMerge} onOpenChange={setShowMerge}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Fusionner « {selectedNode?.name} »</DialogTitle>
+            <DialogDescription>
+              Les profils élève de « {selectedNode?.name} » seront migrés vers la classe cible, puis « {selectedNode?.name} » sera
+              supprimée. Irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="merge-target">Fusionner vers</Label>
+              <select
+                id="merge-target"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={mergeTargetId}
+                onChange={(e) => setMergeTargetId(e.target.value)}
+              >
+                <option value="">Sélectionner...</option>
+                {mergeTargetOptions.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {dependencies === null ? (
+              <p className="text-sm text-muted-foreground">Vérification des dépendances...</p>
+            ) : (
+              (dependencies.activeProfileCount > 0 ||
+                dependencies.linkedSubjectCount > 0 ||
+                dependencies.subscriptionTierCount > 0 ||
+                dependencies.officialExamCount > 0) && (
+                <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400">
+                  <ul className="ml-4 list-disc space-y-1 text-xs">
+                    {dependencies.activeProfileCount > 0 && (
+                      <li className="font-medium">{dependencies.activeProfileCount} profil(s) élève seront migré(s) vers la cible</li>
+                    )}
+                    {dependencies.linkedSubjectCount > 0 && (
+                      <li>{dependencies.linkedSubjectCount} matière(s) rattachée(s) — suivront les règles habituelles de suppression</li>
+                    )}
+                    {dependencies.subscriptionTierCount > 0 && (
+                      <li>
+                        {dependencies.subscriptionTierCount} palier(s) d&apos;abonnement rattaché(s) — réservé au Super-admin si présent
+                      </li>
+                    )}
+                    {dependencies.officialExamCount > 0 && <li>{dependencies.officialExamCount} examen(s) officiel(s) lié(s)</li>}
+                  </ul>
+                </div>
+              )
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMerge(false)}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={isPending || !mergeTargetId || !selectedNode}
+              onClick={() =>
+                selectedNode &&
+                runAction(
+                  () => mergeNode({ id: selectedNode.id, targetId: mergeTargetId }),
+                  () => setShowMerge(false)
+                )
+              }
+            >
+              Fusionner
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Supprimer */}
       <Dialog open={showDelete} onOpenChange={setShowDelete}>
         <DialogContent>
@@ -781,7 +1018,7 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
                   {dependencies.subscriptionTierCount > 0 && (
                     <li>{dependencies.subscriptionTierCount} palier(s) d&apos;abonnement rattaché(s)</li>
                   )}
-                  {dependencies.officialExamCount > 0 && <li>{dependencies.officialExamCount} examen(s) officiel(s)</li>}
+                  {dependencies.officialExamCount > 0 && <li>{dependencies.officialExamCount} examen(s) officiel(s) lié(s)</li>}
                   {dependencies.establishmentPaperCount > 0 && (
                     <li>{dependencies.establishmentPaperCount} épreuve(s) d&apos;établissement</li>
                   )}
@@ -852,7 +1089,7 @@ export function AcademicTreeView({ initialTree }: { initialTree: AcademicTreeNod
 
       {/* Historique */}
       <Dialog open={showHistory} onOpenChange={setShowHistory}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Historique — {selectedNode?.name}</DialogTitle>
           </DialogHeader>

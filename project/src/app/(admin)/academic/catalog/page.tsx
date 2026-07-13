@@ -13,5 +13,5 @@ export default async function CatalogPage() {
   const { selectedCountryId } = await getResolvedCountry();
   const subjects = await listSubjects(selectedCountryId ?? undefined);
 
-  return <CatalogPageView initialSubjects={subjects} />;
+  return <CatalogPageView initialSubjects={subjects} countryId={selectedCountryId} />;
 }

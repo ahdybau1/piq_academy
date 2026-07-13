@@ -15,25 +15,37 @@ export interface UploadResult {
 
 const EXAM_PAPERS_BUCKET = 'exam-papers';
 
+/**
+ * Un examen officiel (BEPC, Probatoire C…) est d'abord un type, pas une classe unique — les
+ * classes/séries habilitées à le composer sont gérées séparément via `exam_type_classes`
+ * (section 3, retour utilisateur : "en 6e on ne compose aucun examen"). `initialClassNodeIds`
+ * permet de les déclarer dès la création, comme `additionalClassNodeIds` pour une matière.
+ */
 export async function createOfficialExam(input: {
   countryId: string;
-  classNodeId: string;
   name: string;
   examDate: string | null;
+  initialClassNodeIds: string[];
   adminId: string | null;
 }): Promise<MutationResult> {
   const name = input.name.trim();
   if (!input.countryId) return { error: 'Le pays est requis.' };
-  if (!input.classNodeId) return { error: 'La classe est requise.' };
   if (!name) return { error: "Le nom de l'examen est requis." };
 
   const supabase = await createClient();
   const { data: exam, error } = await supabase
     .from('official_exams')
-    .insert({ country_id: input.countryId, class_node_id: input.classNodeId, name, exam_date: input.examDate })
+    .insert({ country_id: input.countryId, name, exam_date: input.examDate })
     .select('id')
     .single();
   if (error) return { error: error.message };
+
+  if (input.initialClassNodeIds.length > 0) {
+    const { error: linksError } = await supabase
+      .from('exam_type_classes')
+      .insert(input.initialClassNodeIds.map((classNodeId) => ({ exam_type_id: exam.id, class_node_id: classNodeId })));
+    if (linksError) return { error: linksError.message };
+  }
 
   const admin = createAdminClient();
   const { error: auditError } = await admin.from('audit_log').insert({
@@ -42,7 +54,7 @@ export async function createOfficialExam(input: {
     entity_type: 'official_exams',
     entity_id: exam.id,
     before_json: null,
-    after_json: { name, class_node_id: input.classNodeId, exam_date: input.examDate },
+    after_json: { name, exam_date: input.examDate, class_node_ids: input.initialClassNodeIds },
   });
   if (auditError) return { error: auditError.message };
 
@@ -51,20 +63,15 @@ export async function createOfficialExam(input: {
 
 export async function updateOfficialExam(input: {
   id: string;
-  classNodeId: string;
   name: string;
   examDate: string | null;
   adminId: string | null;
 }): Promise<MutationResult> {
   const name = input.name.trim();
-  if (!input.classNodeId) return { error: 'La classe est requise.' };
   if (!name) return { error: "Le nom de l'examen est requis." };
 
   const supabase = await createClient();
-  const { error } = await supabase
-    .from('official_exams')
-    .update({ class_node_id: input.classNodeId, name, exam_date: input.examDate })
-    .eq('id', input.id);
+  const { error } = await supabase.from('official_exams').update({ name, exam_date: input.examDate }).eq('id', input.id);
   if (error) return { error: error.message };
 
   const admin = createAdminClient();
@@ -74,7 +81,52 @@ export async function updateOfficialExam(input: {
     entity_type: 'official_exams',
     entity_id: input.id,
     before_json: null,
-    after_json: { name, class_node_id: input.classNodeId, exam_date: input.examDate },
+    after_json: { name, exam_date: input.examDate },
+  });
+  if (auditError) return { error: auditError.message };
+
+  return {};
+}
+
+/** Ajoute une classe/série à la liste des classes habilitées à composer cet examen (section 3). */
+export async function addExamTypeClass(input: { examTypeId: string; classNodeId: string; adminId: string | null }): Promise<MutationResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('exam_type_classes')
+    .insert({ exam_type_id: input.examTypeId, class_node_id: input.classNodeId });
+  if (error) return { error: error.message };
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'create',
+    entity_type: 'exam_type_classes',
+    entity_id: input.examTypeId,
+    before_json: null,
+    after_json: { class_node_id: input.classNodeId },
+  });
+  if (auditError) return { error: auditError.message };
+
+  return {};
+}
+
+export async function removeExamTypeClass(input: { examTypeId: string; classNodeId: string; adminId: string | null }): Promise<MutationResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('exam_type_classes')
+    .delete()
+    .eq('exam_type_id', input.examTypeId)
+    .eq('class_node_id', input.classNodeId);
+  if (error) return { error: error.message };
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'delete',
+    entity_type: 'exam_type_classes',
+    entity_id: input.examTypeId,
+    before_json: { class_node_id: input.classNodeId },
+    after_json: null,
   });
   if (auditError) return { error: auditError.message };
 
@@ -115,6 +167,19 @@ export async function deleteOfficialExam(input: {
   const batchId = crypto.randomUUID();
 
   if (papers && papers.length > 0) {
+    const paperIds = papers.map((p) => p.id);
+    const { data: sharedLinks, error: sharedLinksError } = await supabase
+      .from('exam_paper_shared_exams')
+      .select('*')
+      .in('exam_paper_id', paperIds);
+    if (sharedLinksError) return { error: sharedLinksError.message };
+    if (sharedLinks && sharedLinks.length > 0) {
+      const sharedTrash = await trashRows({ batchId, tableName: 'exam_paper_shared_exams', rows: sharedLinks, adminId: input.adminId });
+      if (sharedTrash.error) return sharedTrash;
+      const { error: deleteSharedError } = await supabase.from('exam_paper_shared_exams').delete().in('exam_paper_id', paperIds);
+      if (deleteSharedError) return { error: deleteSharedError.message };
+    }
+
     const paperTrash = await trashRows({
       batchId,
       tableName: 'exam_papers',
@@ -125,6 +190,18 @@ export async function deleteOfficialExam(input: {
 
     const { error: deletePapersError } = await supabase.from('exam_papers').delete().eq('exam_id', input.id);
     if (deletePapersError) return { error: deletePapersError.message };
+  }
+
+  const { data: classLinks, error: classLinksError } = await supabase
+    .from('exam_type_classes')
+    .select('*')
+    .eq('exam_type_id', input.id);
+  if (classLinksError) return { error: classLinksError.message };
+  if (classLinks && classLinks.length > 0) {
+    const classLinksTrash = await trashRows({ batchId, tableName: 'exam_type_classes', rows: classLinks, adminId: input.adminId });
+    if (classLinksTrash.error) return classLinksTrash;
+    const { error: deleteClassLinksError } = await supabase.from('exam_type_classes').delete().eq('exam_type_id', input.id);
+    if (deleteClassLinksError) return { error: deleteClassLinksError.message };
   }
 
   const examTrash = await trashRows({
@@ -238,8 +315,22 @@ export async function deleteExamPaper(input: { id: string; adminId: string | nul
   if (beforeError) return { error: beforeError.message };
   if (!before) return { error: 'Épreuve introuvable.' };
 
+  const batchId = crypto.randomUUID();
+
+  const { data: sharedLinks, error: sharedLinksError } = await supabase
+    .from('exam_paper_shared_exams')
+    .select('*')
+    .eq('exam_paper_id', input.id);
+  if (sharedLinksError) return { error: sharedLinksError.message };
+  if (sharedLinks && sharedLinks.length > 0) {
+    const sharedTrash = await trashRows({ batchId, tableName: 'exam_paper_shared_exams', rows: sharedLinks, adminId: input.adminId });
+    if (sharedTrash.error) return sharedTrash;
+    const { error: deleteSharedError } = await supabase.from('exam_paper_shared_exams').delete().eq('exam_paper_id', input.id);
+    if (deleteSharedError) return { error: deleteSharedError.message };
+  }
+
   const trashResult = await trashRows({
-    batchId: crypto.randomUUID(),
+    batchId,
     tableName: 'exam_papers',
     rows: [before as Record<string, unknown>],
     adminId: input.adminId,
@@ -263,6 +354,70 @@ export async function deleteExamPaper(input: { id: string; adminId: string | nul
   return {};
 }
 
+/**
+ * Partage une épreuve déjà créée avec un autre examen (section 3, retour utilisateur : "deux
+ * examens différents [...] ont parmi les épreuves une ou plusieurs épreuves communes").
+ * L'épreuve reste possédée par son examen d'origine (`exam_papers.exam_id`) ; ce lien ne fait
+ * que la rendre visible/exploitable sous un examen supplémentaire.
+ */
+export async function addExamPaperSharedExam(input: {
+  examPaperId: string;
+  examTypeId: string;
+  adminId: string | null;
+}): Promise<MutationResult> {
+  const supabase = await createClient();
+
+  const { data: paper, error: paperError } = await supabase.from('exam_papers').select('exam_id').eq('id', input.examPaperId).maybeSingle();
+  if (paperError) return { error: paperError.message };
+  if (!paper) return { error: 'Épreuve introuvable.' };
+  if (paper.exam_id === input.examTypeId) return { error: 'Cette épreuve appartient déjà à cet examen.' };
+
+  const { error } = await supabase
+    .from('exam_paper_shared_exams')
+    .insert({ exam_paper_id: input.examPaperId, exam_type_id: input.examTypeId });
+  if (error) return { error: error.message };
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'create',
+    entity_type: 'exam_paper_shared_exams',
+    entity_id: input.examPaperId,
+    before_json: null,
+    after_json: { exam_type_id: input.examTypeId },
+  });
+  if (auditError) return { error: auditError.message };
+
+  return {};
+}
+
+export async function removeExamPaperSharedExam(input: {
+  examPaperId: string;
+  examTypeId: string;
+  adminId: string | null;
+}): Promise<MutationResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('exam_paper_shared_exams')
+    .delete()
+    .eq('exam_paper_id', input.examPaperId)
+    .eq('exam_type_id', input.examTypeId);
+  if (error) return { error: error.message };
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'delete',
+    entity_type: 'exam_paper_shared_exams',
+    entity_id: input.examPaperId,
+    before_json: { exam_type_id: input.examTypeId },
+    after_json: null,
+  });
+  if (auditError) return { error: auditError.message };
+
+  return {};
+}
+
 /** Upload direct d'un PDF (sujet ou correction) dans le bucket dédié — aucune ligne DB créée ici, l'URL est stockée sur l'épreuve elle-même. */
 export async function uploadExamDocument(input: { file: File }): Promise<UploadResult> {
   const { file } = input;
@@ -278,7 +433,10 @@ export async function uploadExamDocument(input: { file: File }): Promise<UploadR
     contentType: file.type,
     upsert: false,
   });
-  if (uploadError) return { error: uploadError.message };
+  if (uploadError) {
+    console.error('[uploadExamDocument] Supabase Storage upload failed:', uploadError);
+    return { error: `Échec de l'upload Storage : ${uploadError.message}` };
+  }
 
   const {
     data: { publicUrl },

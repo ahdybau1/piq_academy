@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     termId: body.termId,
     title: body.title,
     introduction: body.introduction,
+    adminId: guard.admin.id,
   });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json({ ok: true });

@@ -17,16 +17,21 @@ export async function POST(request: Request) {
   const guard = await requireApiRole(OFFICIAL_EXAM_ADMIN_ROLES);
   if ('response' in guard) return guard.response;
 
-  const body = (await request.json()) as { countryId?: string; classNodeId?: string; name?: string; examDate?: string | null };
-  if (typeof body.countryId !== 'string' || typeof body.classNodeId !== 'string' || typeof body.name !== 'string') {
-    return NextResponse.json({ error: 'countryId, classNodeId et name sont requis.' }, { status: 400 });
+  const body = (await request.json()) as {
+    countryId?: string;
+    name?: string;
+    examDate?: string | null;
+    initialClassNodeIds?: string[];
+  };
+  if (typeof body.countryId !== 'string' || typeof body.name !== 'string') {
+    return NextResponse.json({ error: 'countryId et name sont requis.' }, { status: 400 });
   }
 
   const result = await createOfficialExam({
     countryId: body.countryId,
-    classNodeId: body.classNodeId,
     name: body.name,
     examDate: body.examDate ?? null,
+    initialClassNodeIds: body.initialClassNodeIds ?? [],
     adminId: guard.admin.id,
   });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });

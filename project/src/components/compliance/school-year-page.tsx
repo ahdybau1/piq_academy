@@ -155,8 +155,8 @@ export default function SchoolYearPage() {
                 </div>
                 <Progress value={activePromotion.confirmationRate ?? 0} className="h-3" />
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{activePromotion.confirmedStudents?.toLocaleString() ?? '-'} confirmés</span>
-                  <span>{activePromotion.totalStudents?.toLocaleString() ?? '-'} total</span>
+                  <span>{activePromotion.confirmedStudents?.toLocaleString('fr-FR') ?? '-'} confirmés</span>
+                  <span>{activePromotion.totalStudents?.toLocaleString('fr-FR') ?? '-'} total</span>
                 </div>
               </div>
               <div className="space-y-2">
@@ -165,14 +165,14 @@ export default function SchoolYearPage() {
                     <ArrowRight className="h-4 w-4 text-emerald-600" />
                     Cas A (même compte)
                   </span>
-                  <span className="font-medium">{activePromotion.caseA?.toLocaleString() ?? '-'}</span>
+                  <span className="font-medium">{activePromotion.caseA?.toLocaleString('fr-FR') ?? '-'}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-blue-600" />
                     Cas B (nouveau compte)
                   </span>
-                  <span className="font-medium">{activePromotion.caseB?.toLocaleString() ?? '-'}</span>
+                  <span className="font-medium">{activePromotion.caseB?.toLocaleString('fr-FR') ?? '-'}</span>
                 </div>
               </div>
               <div className="flex items-center justify-end gap-2">
@@ -224,9 +224,9 @@ export default function SchoolYearPage() {
                       <p className="text-muted-foreground">au {new Date(promo.endDate).toLocaleDateString('fr-FR')}</p>
                     </div>
                   </TableCell>
-                  <TableCell>{promo.totalStudents?.toLocaleString() || '-'}</TableCell>
-                  <TableCell>{promo.caseA?.toLocaleString() || '-'}</TableCell>
-                  <TableCell>{promo.caseB?.toLocaleString() || '-'}</TableCell>
+                  <TableCell>{promo.totalStudents?.toLocaleString('fr-FR') || '-'}</TableCell>
+                  <TableCell>{promo.caseA?.toLocaleString('fr-FR') || '-'}</TableCell>
+                  <TableCell>{promo.caseB?.toLocaleString('fr-FR') || '-'}</TableCell>
                   <TableCell>
                     {promo.confirmationRate ? (
                       <div className="flex items-center gap-2">
@@ -369,7 +369,7 @@ export default function SchoolYearPage() {
 
       {/* Schedule Dialog */}
       <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Nouvelle campagne de passage</DialogTitle>
             <DialogDescription>

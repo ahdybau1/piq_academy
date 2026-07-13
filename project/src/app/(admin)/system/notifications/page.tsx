@@ -97,7 +97,7 @@ export default function NotificationsPage() {
       <motion.div variants={stagger} initial="hidden" animate="show" className="grid gap-4 sm:grid-cols-3">
         {[
           { label: 'Templates actifs', value: activeCount.toString(), icon: <Bell className="h-5 w-5 text-violet-500" />, bg: 'bg-violet-500/10' },
-          { label: 'Envoyées (30 jours)', value: totalSent.toLocaleString(), icon: <Send className="h-5 w-5 text-blue-500" />, bg: 'bg-blue-500/10', trend: '+12% vs mois dernier' },
+          { label: 'Envoyées (30 jours)', value: totalSent.toLocaleString('fr-FR'), icon: <Send className="h-5 w-5 text-blue-500" />, bg: 'bg-blue-500/10', trend: '+12% vs mois dernier' },
           { label: 'Taux d\'ouverture moyen', value: `${avgOpenRate}%`, icon: <BarChart2 className="h-5 w-5 text-emerald-500" />, bg: 'bg-emerald-500/10' },
         ].map((kpi) => (
           <motion.div key={kpi.label} variants={fadeUp}>
@@ -142,7 +142,7 @@ export default function NotificationsPage() {
                     <p className="font-medium text-sm">{template.event}</p>
                     {template.sent > 0 && (
                       <div className="flex items-center gap-3 mt-1.5">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Send className="h-3 w-3" />{template.sent.toLocaleString()} envois</span>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Send className="h-3 w-3" />{template.sent.toLocaleString('fr-FR')} envois</span>
                         <span className="text-xs text-muted-foreground flex items-center gap-1"><Eye className="h-3 w-3" />{template.openRate}% ouverture</span>
                       </div>
                     )}
@@ -186,8 +186,8 @@ export default function NotificationsPage() {
                     <TableRow key={h.id} className="border-border/40 hover:bg-muted/30">
                       <TableCell className="font-medium text-sm max-w-[200px] truncate">{h.template}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{h.target}</TableCell>
-                      <TableCell className="text-sm">{h.sent.toLocaleString()}</TableCell>
-                      <TableCell className="text-sm">{h.opened.toLocaleString()}</TableCell>
+                      <TableCell className="text-sm">{h.sent.toLocaleString('fr-FR')}</TableCell>
+                      <TableCell className="text-sm">{h.opened.toLocaleString('fr-FR')}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="flex-1 h-1.5 rounded-full bg-muted w-16 overflow-hidden">
@@ -213,7 +213,7 @@ export default function NotificationsPage() {
 
       {/* Edit template dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{editTemplate ? 'Modifier le template' : 'Nouveau template'}</DialogTitle>
             <DialogDescription>Configurez le déclencheur, les canaux et le contenu du message.</DialogDescription>
@@ -248,7 +248,7 @@ export default function NotificationsPage() {
 
       {/* Manual send dialog */}
       <Dialog open={sendOpen} onOpenChange={setSendOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Send className="h-5 w-5" />Envoi manuel ciblé</DialogTitle>
             <DialogDescription>Envoyez une annonce directement à un segment d&apos;utilisateurs.</DialogDescription>

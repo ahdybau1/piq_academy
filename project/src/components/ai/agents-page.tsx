@@ -61,7 +61,7 @@ export default function AIAgentsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Traitements total</p>
-                  <p className="text-2xl font-bold">{totalProcessed.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">{totalProcessed.toLocaleString('fr-FR')}</p>
                 </div>
                 <Activity className="h-8 w-8 text-blue-500/50" />
               </div>
@@ -127,7 +127,7 @@ export default function AIAgentsPage() {
                           {agent.provider === 'claude' ? 'Claude' : 'Gemini'}
                         </Badge>
                       </TableCell>
-                      <TableCell>{agent.totalProcessed.toLocaleString()}</TableCell>
+                      <TableCell>{agent.totalProcessed.toLocaleString('fr-FR')}</TableCell>
                       <TableCell>
                         <Badge variant={agent.status === 'active' ? 'default' : 'secondary'} className={agent.status === 'active' ? 'bg-emerald-600' : ''}>
                           {agent.status === 'active' ? 'Actif' : 'Inactif'}
@@ -177,7 +177,7 @@ export default function AIAgentsPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total traite</span>
-                      <span className="font-medium">{selectedAgent.totalProcessed.toLocaleString()}</span>
+                      <span className="font-medium">{selectedAgent.totalProcessed.toLocaleString('fr-FR')}</span>
                     </div>
                   </div>
 
@@ -226,8 +226,8 @@ export default function AIAgentsPage() {
                   <TableRow key={record.id}>
                     <TableCell>{record.agentName}</TableCell>
                     <TableCell>{record.type}</TableCell>
-                    <TableCell>{record.inputTokens.toLocaleString()}</TableCell>
-                    <TableCell>{record.outputTokens.toLocaleString()}</TableCell>
+                    <TableCell>{record.inputTokens.toLocaleString('fr-FR')}</TableCell>
+                    <TableCell>{record.outputTokens.toLocaleString('fr-FR')}</TableCell>
                     <TableCell>${record.cost.toFixed(3)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={record.status === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}>

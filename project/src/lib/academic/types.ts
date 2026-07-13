@@ -68,6 +68,15 @@ export interface AcademicNodeDependencies {
   contentTranslationClassCount: number;
 }
 
+/** Paramètres d'un nœud de type `pays` (section 1.1) — inexistant tant que l'admin ne les a jamais renseignés. */
+export interface CountrySettingsRow {
+  country_id: string;
+  official_languages: string[];
+  currency: string | null;
+  school_year_start_date: string | null;
+  school_year_end_date: string | null;
+}
+
 export interface AuditLogEntry {
   id: string;
   admin_user_id: string | null;

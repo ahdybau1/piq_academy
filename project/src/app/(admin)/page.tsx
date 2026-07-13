@@ -81,7 +81,7 @@ function DashboardContent() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Utilisateurs actifs"
-          value={MOCK_STATS.activeUsers.toLocaleString()}
+          value={MOCK_STATS.activeUsers.toLocaleString('fr-FR')}
           change="+12.5% ce mois"
           changeType="up"
           icon={<Users className="h-4 w-4" />}
@@ -328,7 +328,7 @@ function DashboardContent() {
                   <span className="text-sm font-medium">{content.title}</span>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {content.views.toLocaleString()} vues
+                  {content.views.toLocaleString('fr-FR')} vues
                 </div>
               </div>
             ))}

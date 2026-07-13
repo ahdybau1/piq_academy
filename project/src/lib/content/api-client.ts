@@ -42,8 +42,24 @@ export async function fetchSubjects(countryId?: string): Promise<SubjectRow[]> {
   return res.json();
 }
 
+/** Matières applicables à une classe, y compris celles partagées via un tronc commun (section 1.5). */
+export async function fetchSubjectsForClass(classNodeId: string): Promise<SubjectRow[]> {
+  const res = await fetch(`/api/content/subjects?classNodeId=${encodeURIComponent(classNodeId)}`);
+  if (!res.ok) throw new Error('Impossible de charger les matières de cette classe.');
+  return res.json();
+}
+
 export function createSubject(input: { name: string; nodeId: string; additionalClassNodeIds: string[] }) {
   return request('/api/content/subjects', jsonInit('POST', input));
+}
+
+export function updateSubject(input: { id: string; name: string }) {
+  return request(`/api/content/subjects/${input.id}`, jsonInit('PATCH', input));
+}
+
+export function deleteSubject(input: { id: string; cascade?: boolean }) {
+  const qs = input.cascade ? '?cascade=true' : '';
+  return request(`/api/content/subjects/${input.id}${qs}`, { method: 'DELETE' });
 }
 
 export async function fetchSubjectClassLinks(subjectId: string): Promise<SubjectClassLinkItem[]> {
@@ -76,6 +92,11 @@ export function updateChapter(input: { id: string; title: string; introduction?:
 
 export function moveChapter(input: { id: string; direction: 'up' | 'down'; subjectId: string }) {
   return request(`/api/content/chapters/${input.id}/move`, jsonInit('POST', input));
+}
+
+export function deleteChapter(input: { id: string; cascade?: boolean }) {
+  const qs = input.cascade ? '?cascade=true' : '';
+  return request(`/api/content/chapters/${input.id}${qs}`, { method: 'DELETE' });
 }
 
 export async function fetchTerms(countryId?: string): Promise<TermRow[]> {
@@ -124,6 +145,10 @@ export function createCatalogEntry(input: { subjectId: string; elementType: stri
   return request('/api/content/catalog', jsonInit('POST', input));
 }
 
+export function updateCatalogEntry(input: { id: string; elementType: string }) {
+  return request(`/api/content/catalog/${input.id}`, jsonInit('PATCH', { elementType: input.elementType }));
+}
+
 export function setCatalogEntryActive(input: { id: string; isActive: boolean }) {
   return request(`/api/content/catalog/${input.id}`, jsonInit('PATCH', { isActive: input.isActive }));
 }
@@ -157,6 +182,15 @@ export function updateLesson(input: { id: string; title: string; contentJson: Re
 
 export function submitForValidation(input: { lessonId: string }) {
   return request(`/api/content/lessons/${input.lessonId}/submit`, { method: 'POST' });
+}
+
+export function deleteLesson(input: { id: string; cascade?: boolean }) {
+  const qs = input.cascade ? '?cascade=true' : '';
+  return request(`/api/content/lessons/${input.id}${qs}`, { method: 'DELETE' });
+}
+
+export function moveLesson(input: { id: string; direction: 'up' | 'down'; chapterId: string }) {
+  return request(`/api/content/lessons/${input.id}/move`, jsonInit('POST', input));
 }
 
 export async function fetchValidationQueue(status?: string, countryId?: string): Promise<ValidationQueueItem[]> {

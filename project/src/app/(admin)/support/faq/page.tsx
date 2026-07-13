@@ -75,7 +75,7 @@ export default function FAQPage() {
       <motion.div variants={stagger} initial="hidden" animate="show" className="grid gap-4 sm:grid-cols-3">
         {[
           { label: 'Entrées publiées', value: FAQ_ITEMS.filter(i => i.published).length.toString(), icon: <HelpCircle className="h-5 w-5 text-blue-500" />, bg: 'bg-blue-500/10' },
-          { label: 'Consultations totales', value: totalViews.toLocaleString(), icon: <Eye className="h-5 w-5 text-emerald-500" />, bg: 'bg-emerald-500/10' },
+          { label: 'Consultations totales', value: totalViews.toLocaleString('fr-FR'), icon: <Eye className="h-5 w-5 text-emerald-500" />, bg: 'bg-emerald-500/10' },
           { label: 'Brouillons', value: FAQ_ITEMS.filter(i => !i.published).length.toString(), icon: <Edit className="h-5 w-5 text-amber-500" />, bg: 'bg-amber-500/10' },
         ].map((kpi) => (
           <motion.div key={kpi.label} variants={fadeUp}>
@@ -184,7 +184,7 @@ export default function FAQPage() {
 
       {/* Edit dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{editItem ? 'Modifier l\'entrée' : 'Nouvelle entrée FAQ'}</DialogTitle>
             <DialogDescription>Cette entrée sera visible par tous les administrateurs dans leur tableau de bord.</DialogDescription>
@@ -225,7 +225,7 @@ export default function FAQPage() {
       </Dialog>
 
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent>
           <DialogHeader><DialogTitle>Supprimer cette entrée ?</DialogTitle><DialogDescription>Les administrateurs ne pourront plus y accéder.</DialogDescription></DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Annuler</Button>

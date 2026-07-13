@@ -66,7 +66,7 @@ export default function RefundsPage() {
 
       <motion.div variants={stagger} initial="hidden" animate="show" className="grid gap-4 sm:grid-cols-3">
         {[
-          { label: 'En attente de traitement', value: counts.pending.toString(), sub: `${totalPending.toLocaleString()} FCFA à traiter`, icon: <Clock className="h-5 w-5 text-amber-500" />, bg: 'bg-amber-500/10', alert: counts.pending > 0 },
+          { label: 'En attente de traitement', value: counts.pending.toString(), sub: `${totalPending.toLocaleString('fr-FR')} FCFA à traiter`, icon: <Clock className="h-5 w-5 text-amber-500" />, bg: 'bg-amber-500/10', alert: counts.pending > 0 },
           { label: 'Approuvés (mois)', value: counts.approved.toString(), icon: <CheckCircle className="h-5 w-5 text-emerald-500" />, bg: 'bg-emerald-500/10' },
           { label: 'Rejetés (mois)', value: counts.rejected.toString(), icon: <XCircle className="h-5 w-5 text-slate-500" />, bg: 'bg-slate-500/10' },
         ].map((kpi) => (
@@ -131,7 +131,7 @@ export default function RefundsPage() {
                               <p className="text-xs text-muted-foreground">{r.email}</p>
                             </div>
                           </TableCell>
-                          <TableCell className="font-semibold">{r.amount.toLocaleString()} FCFA</TableCell>
+                          <TableCell className="font-semibold">{r.amount.toLocaleString('fr-FR')} FCFA</TableCell>
                           <TableCell><Badge variant="outline" className="text-xs">{r.subscriptionType}</Badge></TableCell>
                           <TableCell className="max-w-[200px]"><p className="text-xs text-muted-foreground truncate">{r.reason}</p></TableCell>
                           <TableCell>
@@ -181,7 +181,7 @@ export default function RefundsPage() {
       </div>
 
       <Dialog open={!!selected && !!action} onOpenChange={() => { setSelected(null); setAction(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {action === 'approve' ? <><CheckCircle className="h-5 w-5 text-emerald-500" />Approuver le remboursement</> : <><XCircle className="h-5 w-5 text-red-500" />Rejeter la demande</>}
@@ -191,7 +191,7 @@ export default function RefundsPage() {
             <div className="space-y-4 py-2">
               <div className="rounded-lg bg-muted/50 p-4 space-y-2">
                 <div className="flex items-center gap-2 text-sm"><User className="h-3.5 w-3.5 text-muted-foreground" /><span className="font-medium">{selected.userName}</span></div>
-                <div className="flex items-center gap-2 text-sm"><CreditCard className="h-3.5 w-3.5 text-muted-foreground" /><span className="font-semibold">{selected.amount.toLocaleString()} FCFA</span></div>
+                <div className="flex items-center gap-2 text-sm"><CreditCard className="h-3.5 w-3.5 text-muted-foreground" /><span className="font-semibold">{selected.amount.toLocaleString('fr-FR')} FCFA</span></div>
                 <p className="text-xs text-muted-foreground">{selected.reason}</p>
               </div>
               {action === 'reject' && (
@@ -203,7 +203,7 @@ export default function RefundsPage() {
               {action === 'approve' && (
                 <div className="flex items-start gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 p-3 text-xs text-emerald-700 dark:text-emerald-400">
                   <CheckCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                  <p>Le remboursement de <strong>{selected.amount.toLocaleString()} FCFA</strong> sera initié vers {selected.email}. L&apos;utilisateur recevra une notification automatique.</p>
+                  <p>Le remboursement de <strong>{selected.amount.toLocaleString('fr-FR')} FCFA</strong> sera initié vers {selected.email}. L&apos;utilisateur recevra une notification automatique.</p>
                 </div>
               )}
             </div>

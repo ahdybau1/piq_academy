@@ -98,8 +98,8 @@ export default function AccessibilityPage() {
         {/* KPI Strip */}
         <motion.div variants={stagger} initial="hidden" animate="show" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: 'Contenu total', value: MOCK_ACCESSIBILITY_STATS.totalContent.toLocaleString(), icon: <FileText className="h-5 w-5" />, bg: 'bg-slate-500/10', color: 'text-slate-600 dark:text-slate-400' },
-            { label: 'Conforme', value: MOCK_ACCESSIBILITY_STATS.compliantContent.toLocaleString(), sub: `${complianceRate.toFixed(1)}% du total`, icon: <CheckCircle className="h-5 w-5" />, bg: 'bg-emerald-500/10', color: 'text-emerald-500' },
+            { label: 'Contenu total', value: MOCK_ACCESSIBILITY_STATS.totalContent.toLocaleString('fr-FR'), icon: <FileText className="h-5 w-5" />, bg: 'bg-slate-500/10', color: 'text-slate-600 dark:text-slate-400' },
+            { label: 'Conforme', value: MOCK_ACCESSIBILITY_STATS.compliantContent.toLocaleString('fr-FR'), sub: `${complianceRate.toFixed(1)}% du total`, icon: <CheckCircle className="h-5 w-5" />, bg: 'bg-emerald-500/10', color: 'text-emerald-500' },
             { label: 'En attente', value: MOCK_ACCESSIBILITY_STATS.pendingChecks.toString(), icon: <AlertTriangle className="h-5 w-5" />, bg: 'bg-amber-500/10', color: 'text-amber-500' },
             { label: 'Non conforme', value: (MOCK_ACCESSIBILITY_STATS.totalContent - MOCK_ACCESSIBILITY_STATS.compliantContent - MOCK_ACCESSIBILITY_STATS.pendingChecks).toString(), icon: <XCircle className="h-5 w-5" />, bg: 'bg-red-500/10', color: 'text-red-500' },
           ].map((kpi) => (
@@ -137,7 +137,7 @@ export default function AccessibilityPage() {
                 <Progress value={complianceRate} className="h-4" />
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
-                    {MOCK_ACCESSIBILITY_STATS.compliantContent.toLocaleString()} éléments conformes
+                    {MOCK_ACCESSIBILITY_STATS.compliantContent.toLocaleString('fr-FR')} éléments conformes
                   </span>
                   <span className="font-medium">{complianceRate.toFixed(1)}%</span>
                 </div>
@@ -350,7 +350,7 @@ export default function AccessibilityPage() {
 
       {/* Check Detail Dialog */}
       <Dialog open={!!selectedCheck} onOpenChange={() => setSelectedCheck(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Détails de conformité</DialogTitle>
           </DialogHeader>

@@ -23,7 +23,7 @@ function MediaEmbedComponent({ node }: NodeViewProps) {
     <NodeViewWrapper className="my-2" contentEditable={false}>
       {mediaType === 'image' && (
         // eslint-disable-next-line @next/next/no-img-element -- média dynamique venant de Supabase Storage, pas un asset local
-        <img src={url} alt={label || 'Média'} className="max-h-96 rounded-lg border border-border/40" />
+        <img src={url} alt={label || 'Média'} className="max-h-96 max-w-full rounded-lg border border-border/40" />
       )}
       {mediaType === 'video' && <video src={url} controls className="max-h-96 w-full rounded-lg border border-border/40" />}
       {mediaType === 'audio' && <audio src={url} controls className="w-full" />}

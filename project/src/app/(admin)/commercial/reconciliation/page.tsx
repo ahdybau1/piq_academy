@@ -153,11 +153,11 @@ export default function ReconciliationPage() {
                           <TableCell className="font-mono text-xs">{item.providerRef}</TableCell>
                           <TableCell className="text-sm font-medium">{item.userName}</TableCell>
                           <TableCell><Badge variant="outline" className="text-xs">{item.operator}</Badge></TableCell>
-                          <TableCell className="text-sm">{item.dbAmount.toLocaleString()} FCFA</TableCell>
-                          <TableCell className="text-sm">{item.providerAmount > 0 ? `${item.providerAmount.toLocaleString()} FCFA` : <span className="text-muted-foreground">—</span>}</TableCell>
+                          <TableCell className="text-sm">{item.dbAmount.toLocaleString('fr-FR')} FCFA</TableCell>
+                          <TableCell className="text-sm">{item.providerAmount > 0 ? `${item.providerAmount.toLocaleString('fr-FR')} FCFA` : <span className="text-muted-foreground">—</span>}</TableCell>
                           <TableCell>
                             {diff !== 0
-                              ? <span className={`text-xs font-semibold ${diff > 0 ? 'text-emerald-600' : 'text-red-600'}`}>{diff > 0 ? '+' : ''}{diff.toLocaleString()} FCFA</span>
+                              ? <span className={`text-xs font-semibold ${diff > 0 ? 'text-emerald-600' : 'text-red-600'}`}>{diff > 0 ? '+' : ''}{diff.toLocaleString('fr-FR')} FCFA</span>
                               : <span className="text-xs text-muted-foreground">—</span>}
                           </TableCell>
                           <TableCell>
@@ -183,7 +183,7 @@ export default function ReconciliationPage() {
       </div>
 
       <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Traitement manuel — {selected?.providerRef}</DialogTitle>
             <DialogDescription>Confirmez ou ajustez manuellement ce paiement après vérification du relevé opérateur.</DialogDescription>
@@ -193,8 +193,8 @@ export default function ReconciliationPage() {
               <div className="rounded-lg bg-muted/50 p-4 space-y-2.5">
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">Utilisateur</span><span className="font-medium">{selected.userName}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">Opérateur</span><span>{selected.operator}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Montant DB</span><span className="font-semibold">{selected.dbAmount.toLocaleString()} FCFA</span></div>
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Montant provider</span><span className={`font-semibold ${selected.providerAmount !== selected.dbAmount ? 'text-red-600' : ''}`}>{selected.providerAmount > 0 ? `${selected.providerAmount.toLocaleString()} FCFA` : 'Non confirmé'}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Montant DB</span><span className="font-semibold">{selected.dbAmount.toLocaleString('fr-FR')} FCFA</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Montant provider</span><span className={`font-semibold ${selected.providerAmount !== selected.dbAmount ? 'text-red-600' : ''}`}>{selected.providerAmount > 0 ? `${selected.providerAmount.toLocaleString('fr-FR')} FCFA` : 'Non confirmé'}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">Date</span><span>{new Date(selected.createdAt).toLocaleString('fr-FR')}</span></div>
               </div>
               <div className="space-y-1.5"><Label>Montant validé manuellement (FCFA)</Label><Input type="number" defaultValue={selected.dbAmount} /></div>

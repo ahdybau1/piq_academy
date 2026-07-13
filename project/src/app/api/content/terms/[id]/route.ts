@@ -29,6 +29,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     schoolYear: body.schoolYear,
     startDate: body.startDate,
     endDate: body.endDate,
+    adminId: guard.admin.id,
   });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json({ ok: true });

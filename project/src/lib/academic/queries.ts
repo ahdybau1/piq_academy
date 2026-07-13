@@ -1,7 +1,7 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { AcademicNodeRow, AcademicNodeDependencies, AuditLogEntry } from './types';
+import type { AcademicNodeRow, AcademicNodeDependencies, AuditLogEntry, CountrySettingsRow } from './types';
 
 /**
  * @param countryId Filtre optionnel : ne retourne que le nœud pays racine et ses
@@ -43,7 +43,7 @@ export async function getNodeDependencies(nodeId: string): Promise<AcademicNodeD
       // de la contrainte de clé étrangère — voir la même logique dans deleteNode.
       admin.from('profiles').select('id', { count: 'exact', head: true }).eq('class_node_id', nodeId),
       admin.from('subscription_tiers').select('id', { count: 'exact', head: true }).eq('class_node_id', nodeId),
-      admin.from('official_exams').select('id', { count: 'exact', head: true }).eq('class_node_id', nodeId),
+      admin.from('exam_type_classes').select('id', { count: 'exact', head: true }).eq('class_node_id', nodeId),
       admin.from('establishment_papers').select('id', { count: 'exact', head: true }).eq('class_node_id', nodeId),
       admin.from('forum_threads').select('id', { count: 'exact', head: true }).eq('class_node_id', nodeId),
       admin.from('whatsapp_communities').select('id', { count: 'exact', head: true }).eq('class_node_id', nodeId),
@@ -64,6 +64,18 @@ export async function getNodeDependencies(nodeId: string): Promise<AcademicNodeD
     whatsappCommunityCount: whatsappRes.count ?? 0,
     contentTranslationClassCount: translationRes.count ?? 0,
   };
+}
+
+/** Paramètres d'un pays (section 1.1) — `null` tant qu'aucune valeur n'a jamais été enregistrée. */
+export async function getCountrySettings(countryId: string): Promise<CountrySettingsRow | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('country_settings')
+    .select('country_id, official_languages, currency, school_year_start_date, school_year_end_date')
+    .eq('country_id', countryId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export async function getNodeHistory(nodeId: string): Promise<AuditLogEntry[]> {

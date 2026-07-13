@@ -8,7 +8,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if ('response' in guard) return guard.response;
 
   const { id } = await params;
-  const result = await duplicateNode({ id });
+  const result = await duplicateNode({ id, adminId: guard.admin.id });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

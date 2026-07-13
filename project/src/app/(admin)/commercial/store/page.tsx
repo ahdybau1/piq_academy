@@ -136,7 +136,7 @@ export default function StorePage() {
                           <p className="text-xs text-muted-foreground">{item.series}</p>
                         </div>
                       </TableCell>
-                      <TableCell className="font-semibold">{item.price.toLocaleString()} FCFA</TableCell>
+                      <TableCell className="font-semibold">{item.price.toLocaleString('fr-FR')} FCFA</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1.5">
                           <BarChart2 className="h-3.5 w-3.5 text-muted-foreground" />
@@ -192,7 +192,7 @@ export default function StorePage() {
                       <TableCell className="text-sm font-medium max-w-[260px] truncate">{sale.item}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{sale.buyer}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{new Date(sale.date).toLocaleDateString('fr-FR')}</TableCell>
-                      <TableCell className="font-semibold text-sm">{sale.amount.toLocaleString()} FCFA</TableCell>
+                      <TableCell className="font-semibold text-sm">{sale.amount.toLocaleString('fr-FR')} FCFA</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -203,7 +203,7 @@ export default function StorePage() {
       </Tabs>
 
       <Dialog open={itemOpen} onOpenChange={setItemOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{editItem ? 'Modifier le document' : 'Ajouter un document à la boutique'}</DialogTitle>
             <DialogDescription>Le document sera accessible à l&apos;achat pour les élèves de la classe sélectionnée.</DialogDescription>
@@ -248,7 +248,7 @@ export default function StorePage() {
       </Dialog>
 
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Retirer de la boutique ?</DialogTitle>
             <DialogDescription>Ce document ne sera plus accessible à l&apos;achat. Les élèves l&apos;ayant déjà acheté conservent leur accès.</DialogDescription>

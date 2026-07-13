@@ -344,7 +344,7 @@ export default function CompositionModalitiesPage() {
 
       {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {selectedConfig ? 'Modifier la configuration' : 'Nouvelle configuration'}

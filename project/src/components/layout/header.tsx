@@ -1,10 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useApp } from '@/lib/app-context';
+import { useWorkingClass } from '@/lib/working-class-context';
+import { fetchAcademicNodes } from '@/lib/academic/api-client';
+import type { AcademicNodeRow } from '@/lib/academic/types';
+import { HierarchicalNodeSelect } from '@/components/academic/hierarchical-node-select';
 import { ROLE_COLORS, ROLE_LABELS, ROLE_CONFIGS } from '@/lib/roles-config';
-import { Bell, ChevronDown, Globe, LogOut, Settings, User } from 'lucide-react';
+import { Bell, ChevronDown, Globe, LayoutGrid, LogOut, Settings, User } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -111,6 +116,55 @@ function CountrySelector() {
   );
 }
 
+/**
+ * Sélecteur de « classe/série de travail » — visible uniquement dans la section Académique.
+ * Préremplit les sélecteurs de classe des écrans (Contenu, Catalogue, Médias, Épreuves
+ * d'établissement) pour éviter de reparcourir la cascade Section→Enseignement→Cycle→Classe→Série
+ * à chaque formulaire quand l'admin travaille sur une même classe pendant un moment.
+ */
+function WorkingClassSelector() {
+  const pathname = usePathname();
+  const { selectedCountry } = useApp();
+  const { workingClassNodeId, setWorkingClassNodeId } = useWorkingClass();
+  const [nodes, setNodes] = useState<AcademicNodeRow[] | null>(null);
+
+  useEffect(() => {
+    if (!selectedCountry) {
+      setNodes(null);
+      return;
+    }
+    fetchAcademicNodes(selectedCountry.id)
+      .then(setNodes)
+      .catch(() => setNodes(null));
+  }, [selectedCountry]);
+
+  if (!pathname.startsWith('/academic') || !selectedCountry) return null;
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="hidden items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/50 lg:flex">
+        <LayoutGrid className="h-3 w-3" />
+        Classe de travail
+      </span>
+      <HierarchicalNodeSelect
+        nodes={nodes ?? []}
+        countryId={selectedCountry.id}
+        value={workingClassNodeId ?? ''}
+        onChange={(id) => setWorkingClassNodeId(id || null)}
+        compact
+      />
+      {workingClassNodeId && (
+        <button
+          onClick={() => setWorkingClassNodeId(null)}
+          className="text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+        >
+          Réinitialiser
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function Header() {
   const { currentUser, logout } = useApp();
 
@@ -130,8 +184,9 @@ export function Header() {
     >
       <SidebarTrigger className="-ml-1 shrink-0 text-muted-foreground hover:text-foreground" />
 
-      <div className="flex-1">
+      <div className="flex flex-1 items-center gap-4">
         <CountrySelector />
+        <WorkingClassSelector />
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">

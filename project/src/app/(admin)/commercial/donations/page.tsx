@@ -147,7 +147,7 @@ export default function DonationsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground max-w-[180px] truncate">{d.cause}</TableCell>
-                        <TableCell className="font-semibold">{d.amount.toLocaleString()} {d.currency}</TableCell>
+                        <TableCell className="font-semibold">{d.amount.toLocaleString('fr-FR')} {d.currency}</TableCell>
                         <TableCell><Badge variant="outline" className="text-xs">{d.provider}</Badge></TableCell>
                         <TableCell>
                           <Badge variant="outline" className={`gap-1 text-xs ${s.color}`}>
@@ -226,8 +226,8 @@ export default function DonationsPage() {
                         </div>
                       </div>
                       <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">{cause.collected.toLocaleString()} FCFA</span>
-                        <span className="text-muted-foreground">/ {cause.target.toLocaleString()} FCFA</span>
+                        <span className="text-muted-foreground">{cause.collected.toLocaleString('fr-FR')} FCFA</span>
+                        <span className="text-muted-foreground">/ {cause.target.toLocaleString('fr-FR')} FCFA</span>
                       </div>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Users className="h-3.5 w-3.5" />{cause.donors} donateurs
@@ -250,7 +250,7 @@ export default function DonationsPage() {
       </Tabs>
 
       <Dialog open={causeOpen} onOpenChange={setCauseOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{editCause ? 'Modifier la cause' : 'Nouvelle cause caritative'}</DialogTitle>
             <DialogDescription>Les donateurs verront cette cause lors de leur don.</DialogDescription>

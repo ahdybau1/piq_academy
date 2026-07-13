@@ -10,7 +10,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const body = (await request.json()) as { newParentId?: string | null };
 
-  const result = await moveNode({ id, newParentId: body.newParentId ?? null });
+  const result = await moveNode({ id, newParentId: body.newParentId ?? null, adminId: guard.admin.id });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

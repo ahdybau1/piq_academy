@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useTransition } from 'react';
+import React, { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import { PageHeader } from '@/components/layout/page-header';
@@ -45,7 +45,7 @@ function CollapseForm({ open, children }: { open: boolean; children: React.React
 
 export function TermsPageView() {
   const router = useRouter();
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
   // Le pays est celui choisi dans le header (ou le pays assigné, non modifiable, pour
   // les rôles à périmètre fixe) — plus de sélecteur local dupliqué sur cette page.
   const { selectedCountry } = useApp();
@@ -95,16 +95,23 @@ export function TermsPageView() {
     setForm(emptyForm());
   };
 
+  const isRunningRef = useRef(false);
   const runAction = (fn: () => Promise<{ error?: string }>, onSuccess?: () => void) => {
+    if (isRunningRef.current) return;
+    isRunningRef.current = true;
     setError(null);
     startTransition(async () => {
-      const result = await fn();
-      if (result.error) {
-        setError(result.error);
-        return;
+      try {
+        const result = await fn();
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+        onSuccess?.();
+        router.refresh();
+      } finally {
+        isRunningRef.current = false;
       }
-      onSuccess?.();
-      router.refresh();
     });
   };
 
@@ -192,7 +199,7 @@ export function TermsPageView() {
           <Button variant="outline" size="sm" onClick={cancelForm}>
             Annuler
           </Button>
-          <Button size="sm" disabled={!form.name || !form.schoolYear} onClick={submit} className="gap-2">
+          <Button size="sm" disabled={isPending || !form.name || !form.schoolYear} onClick={submit} className="gap-2">
             <Check className="h-4 w-4" />
             {editingId ? 'Enregistrer' : 'Créer'}
           </Button>

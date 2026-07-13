@@ -44,6 +44,7 @@ export async function createNode(input: {
   nodeType: AcademicNodeType;
   name: string;
   parentId: string | null;
+  adminId: string | null;
 }): Promise<MutationResult> {
   const nodeType = input.nodeType.trim();
   const name = input.name.trim();
@@ -64,36 +65,124 @@ export async function createNode(input: {
   const siblingCount = rows.filter((r) => r.parent_id === (input.parentId ?? null)).length;
   const countryId = nodeType === ROOT_NODE_TYPE ? null : parent!.node_type === ROOT_NODE_TYPE ? parent!.id : parent!.country_id;
 
-  const { error } = await supabase.from('academic_nodes').insert({
-    node_type: nodeType,
-    name,
-    parent_id: input.parentId,
-    country_id: countryId,
-    display_order: siblingCount,
-    is_active: true,
-  });
+  const { data: node, error } = await supabase
+    .from('academic_nodes')
+    .insert({
+      node_type: nodeType,
+      name,
+      parent_id: input.parentId,
+      country_id: countryId,
+      display_order: siblingCount,
+      is_active: true,
+    })
+    .select('id')
+    .single();
 
   if (error) return { error: error.message };
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'create',
+    entity_type: 'academic_nodes',
+    entity_id: node.id,
+    before_json: null,
+    after_json: { node_type: nodeType, name, parent_id: input.parentId },
+  });
+  if (auditError) return { error: auditError.message };
+
   return {};
 }
 
-export async function updateNode(input: { id: string; name: string }): Promise<MutationResult> {
+export async function updateNode(input: { id: string; name: string; adminId: string | null }): Promise<MutationResult> {
   const name = input.name.trim();
   if (!name) return { error: 'Le nom est requis.' };
 
   const supabase = await createClient();
+  const { data: before, error: beforeError } = await supabase.from('academic_nodes').select('name').eq('id', input.id).maybeSingle();
+  if (beforeError) return { error: beforeError.message };
+
   const { error } = await supabase.from('academic_nodes').update({ name }).eq('id', input.id);
   if (error) return { error: error.message };
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'update',
+    entity_type: 'academic_nodes',
+    entity_id: input.id,
+    before_json: before ? { name: before.name } : null,
+    after_json: { name },
+  });
+  if (auditError) return { error: auditError.message };
+
   return {};
 }
 
-export async function setNodeActive(input: { id: string; isActive: boolean }): Promise<MutationResult> {
+/**
+ * Paramètres d'un pays (section 1.1 : "modifier nom, langues officielles, devise,
+ * calendrier scolaire officiel") — upsert, une seule ligne par pays.
+ */
+export async function upsertCountrySettings(input: {
+  countryId: string;
+  officialLanguages: string[];
+  currency: string | null;
+  schoolYearStartDate: string | null;
+  schoolYearEndDate: string | null;
+  adminId: string | null;
+}): Promise<MutationResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from('country_settings').upsert(
+    {
+      country_id: input.countryId,
+      official_languages: input.officialLanguages,
+      currency: input.currency,
+      school_year_start_date: input.schoolYearStartDate,
+      school_year_end_date: input.schoolYearEndDate,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'country_id' }
+  );
+  if (error) return { error: error.message };
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'update',
+    entity_type: 'country_settings',
+    entity_id: input.countryId,
+    before_json: null,
+    after_json: {
+      official_languages: input.officialLanguages,
+      currency: input.currency,
+      school_year_start_date: input.schoolYearStartDate,
+      school_year_end_date: input.schoolYearEndDate,
+    },
+  });
+  if (auditError) return { error: auditError.message };
+
+  return {};
+}
+
+export async function setNodeActive(input: { id: string; isActive: boolean; adminId: string | null }): Promise<MutationResult> {
   const supabase = await createClient();
   const { error } = await supabase
     .from('academic_nodes')
     .update({ is_active: input.isActive })
     .eq('id', input.id);
   if (error) return { error: error.message };
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: input.isActive ? 'activate' : 'deactivate',
+    entity_type: 'academic_nodes',
+    entity_id: input.id,
+    before_json: null,
+    after_json: { is_active: input.isActive },
+  });
+  if (auditError) return { error: auditError.message };
+
   return {};
 }
 
@@ -132,7 +221,7 @@ export async function deleteNode(input: {
     await Promise.all([
       admin.from('subscription_tiers').select('*', { count: 'exact' }).in('class_node_id', toDelete),
       admin.from('profiles').select('*', { count: 'exact' }).in('class_node_id', toDelete),
-      admin.from('official_exams').select('*', { count: 'exact' }).in('class_node_id', toDelete),
+      admin.from('exam_type_classes').select('*', { count: 'exact' }).in('class_node_id', toDelete),
       admin.from('establishment_papers').select('*', { count: 'exact' }).in('class_node_id', toDelete),
       admin.from('forum_threads').select('*', { count: 'exact' }).in('class_node_id', toDelete),
       admin.from('whatsapp_communities').select('*', { count: 'exact' }).in('class_node_id', toDelete),
@@ -164,7 +253,7 @@ export async function deleteNode(input: {
     if (descendants.length > 0) parts.push(`${descendants.length} descendant(s)`);
     if ((tierRes.count ?? 0) > 0) parts.push(`${tierRes.count} palier(s) d'abonnement rattaché(s)`);
     if ((profileRes.count ?? 0) > 0) parts.push(`${profileRes.count} profil(s) élève rattaché(s)`);
-    if ((examRes.count ?? 0) > 0) parts.push(`${examRes.count} examen(s) officiel(s)`);
+    if ((examRes.count ?? 0) > 0) parts.push(`${examRes.count} examen(s) officiel(s) lié(s)`);
     if ((threadRes.count ?? 0) > 0) parts.push(`${threadRes.count} sujet(s) de forum`);
     if (linkedContentCount > 0) parts.push(`${linkedContentCount} autre(s) élément(s) lié(s)`);
     return {
@@ -311,32 +400,22 @@ export async function deleteNode(input: {
     }
   }
 
-  // Contenu pédagogique/communautaire lié : aucune notion de "vendu"/historique financier
-  // dans le schéma (contrairement à profiles/subscription_tiers ci-dessus) — trashé avec
-  // le nœud comme les descendants, sans blocage séparé.
+  // Un examen officiel (BEPC, Probatoire C…) n'est plus rattaché à une seule classe mais à
+  // un ensemble de classes habilitées (exam_type_classes, section 3) — supprimer une classe
+  // ne doit donc pas détruire l'examen lui-même (d'autres classes peuvent encore le
+  // composer), seulement retirer son lien vers cette classe. Même traitement que
+  // subject_class_links ci-dessous.
   if ((examRes.data?.length ?? 0) > 0) {
-    const examIds = examRes.data!.map((e) => e.id as string);
-    const { data: examPapers, error: examPapersSelectError } = await admin
-      .from('exam_papers')
-      .select('*')
-      .in('exam_id', examIds);
-    if (examPapersSelectError) return { error: examPapersSelectError.message };
-
-    const examPapersResult = await trashAndDelete(admin, {
+    const examLinkTrashResult = await trashRows({
       batchId,
-      tableName: 'exam_papers',
-      rows: (examPapers ?? []) as Record<string, unknown>[],
-      adminId: input.adminId,
-    });
-    if (examPapersResult.error) return examPapersResult;
-
-    const examsResult = await trashAndDelete(admin, {
-      batchId,
-      tableName: 'official_exams',
+      tableName: 'exam_type_classes',
       rows: examRes.data as Record<string, unknown>[],
       adminId: input.adminId,
     });
-    if (examsResult.error) return examsResult;
+    if (examLinkTrashResult.error) return examLinkTrashResult;
+
+    const { error: examLinkError } = await admin.from('exam_type_classes').delete().in('class_node_id', toDelete);
+    if (examLinkError) return { error: examLinkError.message };
   }
 
   const paperResult = await trashAndDelete(admin, {
@@ -422,10 +501,82 @@ export async function deleteNode(input: {
     const { error } = await admin.from('academic_nodes').delete().eq('id', id);
     if (error) return { error: error.message };
   }
+
+  // Une seule entrée résumant l'opération sur le nœud principal — le détail ligne par
+  // ligne de la cascade est déjà dans trash_items (voir batchId), inutile de dupliquer.
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'delete',
+    entity_type: 'academic_nodes',
+    entity_id: input.id,
+    before_json: { name: rows.find((r) => r.id === input.id)?.name, descendant_count: descendants.length },
+    after_json: null,
+  });
+  if (auditError) return { error: auditError.message };
+
   return {};
 }
 
-export async function moveNode(input: { id: string; newParentId: string | null }): Promise<MutationResult> {
+/**
+ * Fusionner deux classes en une seule (section 1.4) : migre les profils élève de la classe
+ * source vers la classe cible, puis supprime la classe source. Seule la migration des
+ * profils est explicitement spécifiée par le cahier des charges — tout le reste du contenu
+ * encore rattaché à la source (matières, examens liés, paliers vendus…) suit ensuite les
+ * mêmes règles de dépendance/cascade que n'importe quelle suppression de nœud (deleteNode),
+ * plutôt que d'inventer une logique de fusion séparée pour ce contenu.
+ */
+export async function mergeNode(input: {
+  sourceId: string;
+  targetId: string;
+  adminRole: string;
+  adminId: string | null;
+}): Promise<MutationResult> {
+  if (input.sourceId === input.targetId) return { error: 'Impossible de fusionner un nœud avec lui-même.' };
+
+  const supabase = await createClient();
+
+  const { data: source, error: sourceError } = await supabase
+    .from('academic_nodes')
+    .select('id, node_type, name')
+    .eq('id', input.sourceId)
+    .maybeSingle();
+  if (sourceError) return { error: sourceError.message };
+  if (!source) return { error: 'Classe source introuvable.' };
+
+  const { data: target, error: targetError } = await supabase
+    .from('academic_nodes')
+    .select('id, node_type, name')
+    .eq('id', input.targetId)
+    .maybeSingle();
+  if (targetError) return { error: targetError.message };
+  if (!target) return { error: 'Classe cible introuvable.' };
+
+  if (source.node_type !== target.node_type) {
+    return { error: 'La fusion nécessite deux nœuds du même type (ex. deux classes).' };
+  }
+
+  const { data: movedProfiles, error: moveError } = await supabase
+    .from('profiles')
+    .update({ class_node_id: input.targetId })
+    .eq('class_node_id', input.sourceId)
+    .select('id');
+  if (moveError) return { error: moveError.message };
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'update',
+    entity_type: 'academic_nodes',
+    entity_id: input.targetId,
+    before_json: { merged_from: input.sourceId, merged_from_name: source.name },
+    after_json: { moved_profile_count: movedProfiles?.length ?? 0 },
+  });
+  if (auditError) return { error: auditError.message };
+
+  return deleteNode({ id: input.sourceId, cascade: true, adminRole: input.adminRole, adminId: input.adminId });
+}
+
+export async function moveNode(input: { id: string; newParentId: string | null; adminId: string | null }): Promise<MutationResult> {
   const supabase = await createClient();
   const rows = await fetchAllNodes(supabase);
 
@@ -461,10 +612,22 @@ export async function moveNode(input: { id: string; newParentId: string | null }
       .in('id', descendants);
     if (descError) return { error: descError.message };
   }
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'move',
+    entity_type: 'academic_nodes',
+    entity_id: input.id,
+    before_json: { parent_id: node.parent_id },
+    after_json: { parent_id: input.newParentId },
+  });
+  if (auditError) return { error: auditError.message };
+
   return {};
 }
 
-export async function duplicateNode(input: { id: string }): Promise<MutationResult> {
+export async function duplicateNode(input: { id: string; adminId: string | null }): Promise<MutationResult> {
   const supabase = await createClient();
   const rows = await fetchAllNodes(supabase);
 
@@ -525,5 +688,17 @@ export async function duplicateNode(input: { id: string }): Promise<MutationResu
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Échec de la duplication.' };
   }
+
+  const admin = createAdminClient();
+  const { error: auditError } = await admin.from('audit_log').insert({
+    admin_user_id: input.adminId,
+    action_type: 'create',
+    entity_type: 'academic_nodes',
+    entity_id: idMap.get(original.id) ?? input.id,
+    before_json: { duplicated_from: input.id },
+    after_json: { name: `${original.name} (copie)` },
+  });
+  if (auditError) return { error: auditError.message };
+
   return {};
 }

@@ -113,7 +113,7 @@ export default function ImportExportPage() {
       {/* KPIs */}
       <motion.div variants={stagger} initial="hidden" animate="show" className="grid gap-4 sm:grid-cols-3">
         {[
-          { label: 'Lignes importées (30j)', value: totalImported.toLocaleString(), icon: <Upload className="h-5 w-5 text-blue-500" />, bg: 'bg-blue-500/10' },
+          { label: 'Lignes importées (30j)', value: totalImported.toLocaleString('fr-FR'), icon: <Upload className="h-5 w-5 text-blue-500" />, bg: 'bg-blue-500/10' },
           { label: 'Erreurs d\'import (30j)', value: totalErrors.toString(), icon: <XCircle className="h-5 w-5 text-rose-500" />, bg: 'bg-rose-500/10' },
           { label: 'Exports réalisés (30j)', value: '14', icon: <Download className="h-5 w-5 text-emerald-500" />, bg: 'bg-emerald-500/10' },
         ].map((kpi) => (
@@ -244,7 +244,7 @@ export default function ImportExportPage() {
                       <TableRow key={h.id} className="border-border/40 hover:bg-muted/30 cursor-pointer">
                         <TableCell className="font-mono text-xs text-muted-foreground max-w-[180px] truncate">{h.filename}</TableCell>
                         <TableCell className="text-sm">{h.type}</TableCell>
-                        <TableCell className="text-sm">{h.rows.toLocaleString()}</TableCell>
+                        <TableCell className="text-sm">{h.rows.toLocaleString('fr-FR')}</TableCell>
                         <TableCell>
                           <span className="text-emerald-600 font-medium">{h.ok}</span>
                           {' / '}

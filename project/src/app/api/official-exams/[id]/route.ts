@@ -8,14 +8,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if ('response' in guard) return guard.response;
 
   const { id } = await params;
-  const body = (await request.json()) as { classNodeId?: string; name?: string; examDate?: string | null };
-  if (typeof body.classNodeId !== 'string' || typeof body.name !== 'string') {
-    return NextResponse.json({ error: 'classNodeId et name sont requis.' }, { status: 400 });
+  const body = (await request.json()) as { name?: string; examDate?: string | null };
+  if (typeof body.name !== 'string') {
+    return NextResponse.json({ error: 'name est requis.' }, { status: 400 });
   }
 
   const result = await updateOfficialExam({
     id,
-    classNodeId: body.classNodeId,
     name: body.name,
     examDate: body.examDate ?? null,
     adminId: guard.admin.id,
