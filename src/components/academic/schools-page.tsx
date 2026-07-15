@@ -8,24 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  Building2,
-  Plus,
-  Search,
-  ChevronRight,
-  Home,
-  ArrowLeft,
-  MapPin,
-  FileText,
-  Globe,
-  Trash2,
-  Pencil,
-  Send,
-  Upload,
-  Loader2,
-  AlertTriangle,
-  Users,
-} from 'lucide-react';
+import { Building2, Plus, Search, ChevronRight, Hop as Home, ArrowLeft, MapPin, FileText, Globe, Trash2, Pencil, Send, Upload, Loader as Loader2, TriangleAlert as AlertTriangle, Users } from 'lucide-react';
 import {
   fetchEstablishments,
   createEstablishment,

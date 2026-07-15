@@ -18,33 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Users,
-  Search,
-  Mail,
-  Phone,
-  Calendar,
-  CheckCircle,
-  UserX,
-  MoreHorizontal,
-  Eye,
-  Edit,
-  Trash2,
-  History,
-  CreditCard,
-  LogOut,
-  KeyRound,
-  ArrowRightLeft,
-  Archive,
-  ArchiveRestore,
-  Monitor,
-  UserPlus,
-  ShieldAlert,
-  ArrowLeft,
-  ChevronRight,
-  Home,
-  GraduationCap,
-} from 'lucide-react';
+import { Users, Search, Mail, Phone, Calendar, CircleCheck as CheckCircle, UserX, MoveHorizontal as MoreHorizontal, Eye, CreditCard as Edit, Trash2, History, CreditCard, LogOut, KeyRound, ArrowRightLeft, Archive, ArchiveRestore, Monitor, UserPlus, ShieldAlert, ArrowLeft, ChevronRight, Hop as Home, GraduationCap } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,

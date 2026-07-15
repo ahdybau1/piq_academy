@@ -29,23 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  HardDrive,
-  Download,
-  Play,
-  MoreHorizontal,
-  CheckCircle,
-  XCircle,
-  Clock,
-  AlertCircle,
-  Trash2,
-  RotateCcw,
-  Calendar,
-  Database,
-  Server,
-  Shield,
-  Loader2,
-} from 'lucide-react';
+import { HardDrive, Download, Play, MoveHorizontal as MoreHorizontal, CircleCheck as CheckCircle, Circle as XCircle, Clock, CircleAlert as AlertCircle, Trash2, RotateCcw, Calendar, Database, Server, Shield, Loader as Loader2 } from 'lucide-react';
 import { MOCK_BACKUPS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import type { BackupRecord } from '@/lib/types';

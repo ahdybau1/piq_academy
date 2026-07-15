@@ -25,19 +25,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import {
-  Calendar,
-  Play,
-  Pause,
-  CheckCircle,
-  Clock,
-  Users,
-  ArrowRight,
-  GraduationCap,
-  AlertCircle,
-  ClipboardCheck,
-  Loader2,
-} from 'lucide-react';
+import { Calendar, Play, Pause, CircleCheck as CheckCircle, Clock, Users, ArrowRight, GraduationCap, CircleAlert as AlertCircle, ClipboardCheck, Loader as Loader2 } from 'lucide-react';
 import { MOCK_SCHOOL_YEAR_PROMOTIONS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 

@@ -12,10 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  RefreshCw, CheckCircle, AlertTriangle, Clock, Search,
-  Eye, FileCheck, BarChart2, X,
-} from 'lucide-react';
+import { RefreshCw, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Clock, Search, Eye, FileCheck, ChartBar as BarChart2, X } from 'lucide-react';
 import { MOCK_RECONCILIATION } from '@/lib/mock-data';
 
 const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };

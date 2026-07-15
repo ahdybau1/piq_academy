@@ -31,17 +31,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import {
-  FileScan,
-  Mic,
-  Touchpad,
-  Settings2,
-  Edit,
-  Trash2,
-  Plus,
-  CheckCircle,
-  AlertCircle,
-} from 'lucide-react';
+import { FileScan, Mic, Touchpad, Settings2, CreditCard as Edit, Trash2, Plus, CircleCheck as CheckCircle, CircleAlert as AlertCircle } from 'lucide-react';
 import { MOCK_COMPOSITION_MODALITIES } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import type { CompositionModalityConfig } from '@/lib/types';

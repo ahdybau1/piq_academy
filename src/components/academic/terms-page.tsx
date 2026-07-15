@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, Plus, Edit2, X, Check, Globe } from 'lucide-react';
+import { Calendar, Plus, CreditCard as Edit2, X, Check, Globe } from 'lucide-react';
 import { fetchTerms, createTerm, updateTerm } from '@/lib/content/api-client';
 import type { TermRow } from '@/lib/content/types';
 import { cn } from '@/lib/utils';

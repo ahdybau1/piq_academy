@@ -8,15 +8,7 @@ import { cn } from '@/lib/utils';
 import { useApp } from '@/lib/app-context';
 import { ROLE_CONFIGS } from '@/lib/roles-config';
 import type { UserRole } from '@/lib/types';
-import {
-  GraduationCap, Users, CheckCircle2, MessageSquare, Headphones,
-  DollarSign, Brain, Settings, ChevronRight, BookOpen, FileText,
-  Building2, Layers, UserCog, Shield, AlertCircle, Calendar,
-  Megaphone, HelpCircle, CreditCard, RefreshCw, Package, Heart,
-  Gift, Cpu, BarChart3, Globe, Bell, FileDown, History, Server,
-  HardDrive, Accessibility, Presentation, ShieldCheck, ArrowRightLeft,
-  MegaphoneOff, Tags, Trash2, ListChecks, Library, MonitorPlay,
-} from 'lucide-react';
+import { GraduationCap, Users, CircleCheck as CheckCircle2, MessageSquare, Headphones, DollarSign, Brain, Settings, ChevronRight, BookOpen, FileText, Building2, Layers, UserCog, Shield, CircleAlert as AlertCircle, Calendar, Megaphone, Circle as HelpCircle, CreditCard, RefreshCw, Package, Heart, Gift, Cpu, ChartBar as BarChart3, Globe, Bell, FileDown, History, Server, HardDrive, Accessibility, Presentation, ShieldCheck, ArrowRightLeft, MegaphoneOff, Tags, Trash2, ListChecks, Library, MonitorPlay } from 'lucide-react';
 
 interface NavItem {
   title: string;

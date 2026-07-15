@@ -11,24 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import {
-  GripVertical,
-  Plus,
-  CheckCircle2,
-  AlertTriangle,
-  BookOpen,
-  User,
-  Library,
-  Star,
-  Settings2,
-  Eye,
-  RotateCcw,
-  Pencil,
-  Trash2,
-  TrendingDown,
-  Users,
-  LayoutList,
-} from 'lucide-react';
+import { GripVertical, Plus, CircleCheck as CheckCircle2, TriangleAlert as AlertTriangle, BookOpen, User, Library, Star, Settings2, Eye, RotateCcw, Pencil, Trash2, TrendingDown, Users, LayoutList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.04 } } };

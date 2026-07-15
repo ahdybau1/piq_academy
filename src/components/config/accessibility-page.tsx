@@ -22,21 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import {
-  Eye,
-  Ear,
-  Type,
-  Captions,
-  FileText,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  RefreshCw,
-  EyeOff,
-  Volume2,
-  Monitor,
-  Loader2,
-} from 'lucide-react';
+import { Eye, Ear, Type, Captions, FileText, CircleCheck as CheckCircle, Circle as XCircle, TriangleAlert as AlertTriangle, RefreshCw, EyeOff, Volume2, Monitor, Loader as Loader2 } from 'lucide-react';
 import { MOCK_ACCESSIBILITY_CHECKS, MOCK_ACCESSIBILITY_STATS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import type { AccessibilityCheck } from '@/lib/types';

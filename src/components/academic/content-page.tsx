@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BookOpen, Layers, FileText, Plus, X, ChevronRight, Send, Unlock, ArrowLeft, Home, Search, Tag, Pencil, ChevronUp, ChevronDown, ListChecks, Trash2, AlertTriangle } from 'lucide-react';
+import { BookOpen, Layers, FileText, Plus, X, ChevronRight, Send, Clock as Unlock, ArrowLeft, Hop as Home, Search, Tag, Pencil, ChevronUp, ChevronDown, ListChecks, Trash2, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { HierarchicalNodeSelect } from './hierarchical-node-select';
 import {
   fetchSubjects,

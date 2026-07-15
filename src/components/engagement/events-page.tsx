@@ -11,7 +11,7 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { Calendar, Plus, Trophy, BookOpen, Clock, CheckCircle, ChevronRight, Home } from 'lucide-react';
+import { Calendar, Plus, Trophy, BookOpen, Clock, CircleCheck as CheckCircle, ChevronRight, Hop as Home } from 'lucide-react';
 import { MOCK_EVENTS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 

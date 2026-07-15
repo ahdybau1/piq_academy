@@ -7,11 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { 
-  Plus, BookOpen, Calculator, FileText, CheckSquare, 
-  Sigma, AlignLeft, Image as ImageIcon, CheckCircle2, 
-  Brain, Zap, Activity, Clock
-} from 'lucide-react';
+import { Plus, BookOpen, Calculator, FileText, SquareCheck as CheckSquare, Sigma, ChevronLeft as AlignLeft, Image as ImageIcon, CircleCheck as CheckCircle2, Brain, Zap, Activity, Clock } from 'lucide-react';
 
 const stagger: Variants = {
   hidden: {},

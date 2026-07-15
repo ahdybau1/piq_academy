@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { MessageCircle, Plus, Users, CheckCircle, ChevronRight, Home, ExternalLink } from 'lucide-react';
+import { MessageCircle, Plus, Users, CircleCheck as CheckCircle, ChevronRight, Hop as Home, ExternalLink } from 'lucide-react';
 import { MOCK_WHATSAPP_COMMUNITIES } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 

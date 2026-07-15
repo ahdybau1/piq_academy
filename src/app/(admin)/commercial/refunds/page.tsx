@@ -12,10 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Clock, CheckCircle, XCircle, Search, Eye,
-  CreditCard, User,
-} from 'lucide-react';
+import { Clock, CircleCheck as CheckCircle, Circle as XCircle, Search, Eye, CreditCard, User } from 'lucide-react';
 import { MOCK_REFUNDS } from '@/lib/mock-data';
 
 const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };

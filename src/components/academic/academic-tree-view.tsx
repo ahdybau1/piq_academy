@@ -18,35 +18,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  ChevronRight,
-  Plus,
-  Pencil,
-  Trash2,
-  Copy,
-  MoveRight,
-  GitMerge,
-  History,
-  ToggleLeft,
-  ToggleRight,
-  Layers,
-  Globe,
-  GraduationCap,
-  School,
-  ListOrdered,
-  Network,
-  TreePine,
-  Search,
-  AlertTriangle,
-  XCircle,
-  Users,
-  BookOpen,
-  Wallet,
-  FileText,
-  MessageSquare,
-  Share2,
-  Languages,
-} from 'lucide-react';
+import { ChevronRight, Plus, Pencil, Trash2, Copy, MoveRight, GitMerge, History, ToggleLeft, ToggleRight, Layers, Globe, GraduationCap, School, ListOrdered, Network, TreePine, Search, TriangleAlert as AlertTriangle, Circle as XCircle, Users, BookOpen, Wallet, FileText, MessageSquare, Share2, Languages } from 'lucide-react';
 import {
   createNode,
   updateNode,

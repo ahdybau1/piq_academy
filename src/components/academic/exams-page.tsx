@@ -8,23 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  GraduationCap,
-  Plus,
-  ChevronRight,
-  Home,
-  ArrowLeft,
-  Trash2,
-  Pencil,
-  FileText,
-  Upload,
-  Loader2,
-  Calendar,
-  AlertTriangle,
-  Globe,
-  X,
-  Share2,
-} from 'lucide-react';
+import { GraduationCap, Plus, ChevronRight, Hop as Home, ArrowLeft, Trash2, Pencil, FileText, Upload, Loader as Loader2, Calendar, TriangleAlert as AlertTriangle, Globe, X, Share2 } from 'lucide-react';
 import {
   fetchOfficialExams,
   createOfficialExam,

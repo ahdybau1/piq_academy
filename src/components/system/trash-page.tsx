@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Trash2, RotateCcw, XCircle, Package, AlertTriangle } from 'lucide-react';
+import { Trash2, RotateCcw, Circle as XCircle, Package, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { fetchTrashBatches, restoreTrashBatch, purgeTrashBatch } from '@/lib/trash/api-client';
 import type { TrashBatch } from '@/lib/trash/types';
 import { cn } from '@/lib/utils';

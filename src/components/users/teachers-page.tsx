@@ -13,11 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Users, Search, Building2, Clock, CheckCircle, XCircle,
-  UserPlus, BookOpen, Mail, GraduationCap,
-  MoreHorizontal, Eye, Trash2,
-} from 'lucide-react';
+import { Users, Search, Building2, Clock, CircleCheck as CheckCircle, Circle as XCircle, UserPlus, BookOpen, Mail, GraduationCap, MoveHorizontal as MoreHorizontal, Eye, Trash2 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,

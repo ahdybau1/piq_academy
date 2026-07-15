@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, type Variants } from 'framer-motion';
-import { Search, ChevronRight, Home, Shield, MoreVertical } from 'lucide-react';
+import { Search, ChevronRight, Hop as Home, Shield, MoveVertical as MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';

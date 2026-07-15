@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Download, Edit } from 'lucide-react';
+import { Download, CreditCard as Edit } from 'lucide-react';
 import { ROLE_CONFIGS } from '@/lib/roles-config';
 import { cn } from '@/lib/utils';
 

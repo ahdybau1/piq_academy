@@ -13,11 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Package, Plus, Edit, Trash2, ShoppingCart,
-  Search, Lock, FileText, Shield, BarChart2, Eye, Download,
-  MoreHorizontal, History, AlertTriangle,
-} from 'lucide-react';
+import { Package, Plus, CreditCard as Edit, Trash2, ShoppingCart, Search, Lock, FileText, Shield, ChartBar as BarChart2, Eye, Download, MoveHorizontal as MoreHorizontal, History, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };

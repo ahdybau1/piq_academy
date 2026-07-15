@@ -14,11 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import {
-  Bell, Mail, Smartphone, MessageSquare, Edit, Send,
-  Plus, BarChart2, Eye,
-  AlertCircle
-} from 'lucide-react';
+import { Bell, Mail, Smartphone, MessageSquare, CreditCard as Edit, Send, Plus, ChartBar as BarChart2, Eye, CircleAlert as AlertCircle } from 'lucide-react';
 
 const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 const fadeUp: Variants = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } } };

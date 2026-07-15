@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Image as ImageIcon, Video, Music, FileText, File as FileIcon, Upload, Loader2 } from 'lucide-react';
+import { Image as ImageIcon, Video, Music, FileText, File as FileIcon, Upload, Loader as Loader2 } from 'lucide-react';
 import { fetchMedia, uploadMediaFile } from '@/lib/media/api-client';
 import type { MediaItem, MediaType } from '@/lib/media/types';
 import { cn } from '@/lib/utils';

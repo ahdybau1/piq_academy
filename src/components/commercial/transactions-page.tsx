@@ -11,9 +11,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
-import {
-  DollarSign, Search, Download, Calendar, ChevronRight, AlertCircle,
-} from 'lucide-react';
+import { DollarSign, Search, Download, Calendar, ChevronRight, CircleAlert as AlertCircle } from 'lucide-react';
 import { MOCK_TRANSACTIONS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 

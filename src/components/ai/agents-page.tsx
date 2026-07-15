@@ -15,7 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Brain, Activity, CheckCircle, AlertCircle, Cpu, Clock, BarChart3 } from 'lucide-react';
+import { Brain, Activity, CircleCheck as CheckCircle, CircleAlert as AlertCircle, Cpu, Clock, ChartBar as BarChart3 } from 'lucide-react';
 import { MOCK_AI_AGENTS, MOCK_AI_RECORDS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 

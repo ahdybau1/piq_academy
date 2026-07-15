@@ -2,20 +2,7 @@
 
 import React, { useEffect, useRef, useState, useTransition } from 'react';
 import { motion, type Variants } from 'framer-motion';
-import {
-  Search,
-  ChevronRight,
-  Home,
-  Upload,
-  Image as ImageIcon,
-  FileText,
-  Video,
-  Music,
-  File as FileIcon,
-  Trash2,
-  Loader2,
-  Globe,
-} from 'lucide-react';
+import { Search, ChevronRight, Hop as Home, Upload, Image as ImageIcon, FileText, Video, Music, File as FileIcon, Trash2, Loader as Loader2, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';

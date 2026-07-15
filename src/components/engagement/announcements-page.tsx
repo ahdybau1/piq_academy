@@ -12,7 +12,7 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { Megaphone, Plus, Edit, Trash2, Bell, Calendar, AlertTriangle, Home, ChevronRight } from 'lucide-react';
+import { Megaphone, Plus, CreditCard as Edit, Trash2, Bell, Calendar, TriangleAlert as AlertTriangle, Hop as Home, ChevronRight } from 'lucide-react';
 import { MOCK_ANNOUNCEMENTS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 

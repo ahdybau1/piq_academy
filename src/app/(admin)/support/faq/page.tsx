@@ -11,10 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  Plus, Search, Edit, Trash2, ChevronDown, HelpCircle,
-  BookOpen, Users, Settings, Shield, CreditCard, GripVertical, Eye
-} from 'lucide-react';
+import { Plus, Search, CreditCard as Edit, Trash2, ChevronDown, Circle as HelpCircle, BookOpen, Users, Settings, Shield, CreditCard, GripVertical, Eye } from 'lucide-react';
 
 const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
 const fadeUp: Variants = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } } };

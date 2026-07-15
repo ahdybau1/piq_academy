@@ -31,17 +31,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import {
-  ArrowRightLeft,
-  Keyboard,
-  CheckCircle,
-  Mic,
-  Tablet,
-  Plus,
-  Edit,
-  Trash2,
-  Search,
-} from 'lucide-react';
+import { ArrowRightLeft, Keyboard, CircleCheck as CheckCircle, Mic, Tablet, Plus, CreditCard as Edit, Trash2, Search } from 'lucide-react';
 import { MOCK_RESPONSE_MODES, MOCK_SUBJECTS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import type { ExerciseResponseMode, ResponseModeType } from '@/lib/types';

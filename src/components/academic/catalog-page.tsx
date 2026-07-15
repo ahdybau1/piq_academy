@@ -5,7 +5,7 @@ import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Tags, Plus, Trash2, ChevronRight, Home, ArrowLeft, Tag, Copy, AlertTriangle, Pencil, Check, X as XIcon, Search } from 'lucide-react';
+import { Tags, Plus, Trash2, ChevronRight, Hop as Home, ArrowLeft, Tag, Copy, TriangleAlert as AlertTriangle, Pencil, Check, X as XIcon, Search } from 'lucide-react';
 import {
   fetchCatalog,
   createCatalogEntry,

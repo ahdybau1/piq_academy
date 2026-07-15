@@ -13,10 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
-import {
-  Globe, Plus, Edit, Download, Upload, Search,
-  CheckCircle, AlertTriangle, Languages
-} from 'lucide-react';
+import { Globe, Plus, CreditCard as Edit, Download, Upload, Search, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Languages } from 'lucide-react';
 
 const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 const fadeUp: Variants = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } } };

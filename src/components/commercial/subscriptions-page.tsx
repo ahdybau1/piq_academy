@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Check, X, Edit, Trash2, EyeOff, Eye, TrendingUp, TrendingDown, Users, RefreshCw } from 'lucide-react';
+import { Check, X, CreditCard as Edit, Trash2, EyeOff, Eye, TrendingUp, TrendingDown, Users, RefreshCw } from 'lucide-react';
 import { MOCK_SUBSCRIPTION_TIERS } from '@/lib/mock-data';
 import { fetchSubscriptionTiers, deleteSubscriptionTier, setSubscriptionTierActive } from '@/lib/subscriptions/api-client';
 import type { SubscriptionTierRow } from '@/lib/subscriptions/types';

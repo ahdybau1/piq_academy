@@ -14,10 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  FileText, CheckCircle, XCircle, AlertCircle, ChevronRight,
-  ArrowLeft, Home, Layers,
-} from 'lucide-react';
+import { FileText, CircleCheck as CheckCircle, Circle as XCircle, CircleAlert as AlertCircle, ChevronRight, ArrowLeft, Hop as Home, Layers } from 'lucide-react';
 import { useApp } from '@/lib/app-context';
 import {
   fetchValidationQueue,

@@ -22,10 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  AlertCircle, Clock, CheckCircle, FileText, MessageSquare,
-  ArrowLeft, ChevronRight, Home, Users, Timer,
-} from 'lucide-react';
+import { CircleAlert as AlertCircle, Clock, CircleCheck as CheckCircle, FileText, MessageSquare, ArrowLeft, ChevronRight, Hop as Home, Users, Timer } from 'lucide-react';
 import { MOCK_CONTESTATIONS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 

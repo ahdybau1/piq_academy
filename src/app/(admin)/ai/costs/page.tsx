@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DollarSign, AlertTriangle, TrendingDown } from 'lucide-react';
+import { DollarSign, TriangleAlert as AlertTriangle, TrendingDown } from 'lucide-react';
 import { useApp } from '@/lib/app-context';
 import { ROLE_CONFIGS } from '@/lib/roles-config';
 

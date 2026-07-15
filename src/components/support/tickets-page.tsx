@@ -5,10 +5,7 @@ import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Headphones, Clock, CheckCircle, AlertCircle, Send,
-  ArrowLeft, ChevronRight, Home, MessageSquare, User,
-} from 'lucide-react';
+import { Headphones, Clock, CircleCheck as CheckCircle, CircleAlert as AlertCircle, Send, ArrowLeft, ChevronRight, Hop as Home, MessageSquare, User } from 'lucide-react';
 import { MOCK_TICKETS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 

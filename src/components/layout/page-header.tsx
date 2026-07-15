@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ChevronRight, Home } from 'lucide-react';
+import { ChevronRight, Hop as Home } from 'lucide-react';
 import Link from 'next/link';
 
 interface BreadcrumbItem {

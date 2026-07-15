@@ -22,19 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Server,
-  RefreshCw,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  AlertCircle,
-  DollarSign,
-  Brain,
-  Activity,
-  TrendingUp,
-  TrendingDown,
-} from 'lucide-react';
+import { Server, RefreshCw, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Clock, CircleAlert as AlertCircle, DollarSign, Brain, Activity, TrendingUp, TrendingDown } from 'lucide-react';
 import { MOCK_EXTERNAL_SERVICES } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import type { ExternalService } from '@/lib/types';

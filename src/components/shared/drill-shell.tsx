@@ -9,7 +9,7 @@
 
 import React from 'react';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
-import { ArrowLeft, ChevronRight, Home } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Hop as Home } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 

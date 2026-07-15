@@ -6,18 +6,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import {
-  Users,
-  BookOpen,
-  FileText,
-  TrendingUp,
-  Activity,
-  Award,
-  Clock,
-  ArrowUpRight,
-  ArrowDownRight,
-  BarChart3,
-} from 'lucide-react';
+import { Users, BookOpen, FileText, TrendingUp, Activity, Award, Clock, ArrowUpRight, ArrowDownRight, ChartBar as BarChart3 } from 'lucide-react';
 import { MOCK_STATS, MOCK_CONTENT_VALIDATION, MOCK_TICKETS } from '@/lib/mock-data';
 import { ROLE_CONFIGS } from '@/lib/roles-config';
 

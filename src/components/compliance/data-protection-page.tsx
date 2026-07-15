@@ -32,20 +32,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import {
-  UserX,
-  Download,
-  Trash2,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Search,
-  FileText,
-  Database,
-  Loader2,
-  Eye,
-} from 'lucide-react';
+import { UserX, Download, Trash2, Clock, CircleCheck as CheckCircle, Circle as XCircle, CircleAlert as AlertCircle, Search, FileText, Database, Loader as Loader2, Eye } from 'lucide-react';
 import { MOCK_DELETION_REQUESTS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import type { DataDeletionRequest } from '@/lib/types';

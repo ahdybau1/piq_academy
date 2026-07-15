@@ -19,10 +19,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Megaphone, Plus, Edit, Trash2, Play, Pause, Eye, MousePointerClick,
-  Shield, Ban, ExternalLink,
-} from 'lucide-react';
+import { Megaphone, Plus, CreditCard as Edit, Trash2, Play, Pause, Eye, MousePointerClick, Shield, Ban, ExternalLink } from 'lucide-react';
 import { MOCK_ADVERTISERS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import type { Advertiser } from '@/lib/types';

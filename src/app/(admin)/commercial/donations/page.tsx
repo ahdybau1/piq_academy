@@ -14,10 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import {
-  Heart, Download, Plus, Edit, CheckCircle, Clock, XCircle,
-  Search, Filter, MoreHorizontal, Eye, Receipt, FileText, Users, Target,
-} from 'lucide-react';
+import { Heart, Download, Plus, CreditCard as Edit, CircleCheck as CheckCircle, Clock, Circle as XCircle, Search, ListFilter as Filter, MoveHorizontal as MoreHorizontal, Eye, Receipt, FileText, Users, Target } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MOCK_DONATIONS } from '@/lib/mock-data';
 

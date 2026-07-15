@@ -11,10 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
-import {
-  Upload, Download, FileText, CheckCircle, AlertTriangle,
-  XCircle, Clock, BarChart2, Database, Users, BookOpen, Layers
-} from 'lucide-react';
+import { Upload, Download, FileText, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Circle as XCircle, Clock, ChartBar as BarChart2, Database, Users, BookOpen, Layers } from 'lucide-react';
 
 const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 const fadeUp: Variants = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } } };

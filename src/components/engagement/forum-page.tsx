@@ -3,10 +3,7 @@
 import React, { useState } from 'react';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import {
-  AlertTriangle, CheckCircle, Clock, Flag,
-  ArrowLeft, ChevronRight, Home, UserX, Trash2, Bell,
-} from 'lucide-react';
+import { TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Clock, Flag, ArrowLeft, ChevronRight, Hop as Home, UserX, Trash2, Bell } from 'lucide-react';
 import { MOCK_FORUM_REPORTS } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 
